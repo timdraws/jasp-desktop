@@ -55,6 +55,7 @@
 #include "analysisforms/binomialtestform.h"
 #include "analysisforms/binomialtestbayesianform.h"
 #include "analysisforms/bffromtform.h"
+
 #include "analysisforms/SummaryStatistics/summarystatsttestbayesianindependentsamplesform.h"
 #include "analysisforms/SummaryStatistics/summarystatsttestbayesianpairedsamplesform.h"
 #include "analysisforms/SummaryStatistics/summarystatsttestbayesianonesampleform.h"
@@ -64,6 +65,14 @@
 
 #ifdef QT_DEBUG
 #include "analysisforms/basregressionlinearlinkform.h"
+#include "analysisforms/Bain/bainancovabayesianform.h"
+#include "analysisforms/Bain/bainanovabayesianform.h"
+#include "analysisforms/Bain/bainanovarepeatedmeasuresbayesianform.h"
+#include "analysisforms/Bain/baincorrelationbayesianform.h"
+#include "analysisforms/Bain/bainregressionlinearbayesianform.h"
+#include "analysisforms/Bain/bainttestbayesianindependentsamplesform.h"
+#include "analysisforms/Bain/bainttestbayesianonesampleform.h"
+#include "analysisforms/Bain/bainttestbayesianpairedsamplesform.h"
 #endif
 
 #include "analysisforms/SEM/semsimpleform.h"
@@ -160,6 +169,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->ribbonSEM->setDataSetLoaded(false);
 	ui->ribbonR11tLearn->setDataSetLoaded(false);
 	ui->ribbonSummaryStatistics->setDataSetLoaded(false);
+	ui->ribbonBain->setDataSetLoaded(false);
 
 #ifdef QT_DEBUG
 	ui->webViewResults->page()->settings()->setAttribute(QWebSettings::DeveloperExtrasEnabled, true);
@@ -206,6 +216,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	connect(ui->ribbonSEM, SIGNAL(itemSelected(QString)), this, SLOT(itemSelected(QString)));
 	connect(ui->ribbonR11tLearn, SIGNAL(itemSelected(QString)), this, SLOT(itemSelected(QString)));
 	connect(ui->ribbonSummaryStatistics, SIGNAL(itemSelected(QString)), this, SLOT(itemSelected(QString)));
+	connect(ui->ribbonBain, SIGNAL(itemSelected(QString)), this, SLOT(itemSelected(QString)));
 	connect(ui->backStage, SIGNAL(dataSetIORequest(FileEvent*)), this, SLOT(dataSetIORequest(FileEvent*)));
 	connect(ui->backStage, SIGNAL(exportSelected(QString)), this, SLOT(exportSelected(QString)));
 	connect(ui->variablesPage, SIGNAL(columnChanged(QString)), this, SLOT(refreshAnalysesUsingColumn(QString)));
@@ -769,11 +780,31 @@ AnalysisForm* MainWindow::loadForm(const string name)
 	else if (name == "SummaryStatsRegressionLinearBayesian")
 		form = new SummaryStatsRegressionLinearBayesianForm(contentArea);
 	else if (name == "SummaryStatsCorrelationBayesianPairs")
-		form = new SummaryStatsCorrelationBayesianPairsForm(contentArea);
+        form = new SummaryStatsCorrelationBayesianPairsForm(contentArea);
+
 #ifdef QT_DEBUG
 	else if (name == "BASRegressionLinearLink")
 		form = new BASRegressionLinearLinkForm(contentArea);
+
+	else if (name == "BainTTestBayesianOneSample")
+		form = new BainTTestBayesianOneSampleForm(contentArea);
+	else if (name == "BainTTestBayesianIndependentSamples")
+		form = new BainTTestBayesianIndependentSamplesForm(contentArea);
+	else if (name == "BainTTestBayesianPairedSamples")
+		form = new BainTTestBayesianPairedSamplesForm(contentArea);
+	else if (name == "BainAncovaBayesian")
+		form = new BainAncovaBayesianForm(contentArea);
+	else if (name == "BainAnovaBayesian")
+		form = new BainAnovaBayesianForm(contentArea);
+	else if (name == "BainAnovaRepeatedMeasuresBayesian")
+		form = new BainAnovaRepeatedMeasuresBayesianForm(contentArea);
+	else if (name == "BainCorrelationBayesian")
+		form = new BainCorrelationBayesianForm(contentArea);
+	else if (name == "BainRegressionLinearBayesian")
+		form = new BainRegressionLinearBayesianForm(contentArea);
+
 #endif
+
 	else
 		qDebug() << "MainWindow::loadForm(); form not found : " << name.c_str();
 
@@ -908,6 +939,10 @@ void MainWindow::tabChanged(int index)
 		else if(currentActiveTab == "Summary Stats")
 		{
 			ui->ribbon->setCurrentIndex(3);
+		}
+		else if(currentActiveTab == "Bain")
+		{
+			ui->ribbon->setCurrentIndex(4);
 		}
 	}
 }
@@ -1261,6 +1296,7 @@ void MainWindow::updateMenuEnabledDisabledStatus()
 	ui->ribbonAnalysis->setDataSetLoaded(loaded);
 	ui->ribbonSEM->setDataSetLoaded(loaded);
 	ui->ribbonR11tLearn->setDataSetLoaded(loaded);
+	ui->ribbonBain->setDataSetLoaded(loaded);
 }
 
 void MainWindow::updateUIFromOptions()
@@ -1286,6 +1322,12 @@ void MainWindow::updateUIFromOptions()
 		ui->tabBar->addTab("Summary Stats");
 	else
 		ui->tabBar->removeTab("Summary Stats");
+
+	QVariant bain = _settings.value("toolboxes/bain", false);
+	if (bain.canConvert(QVariant::Bool) && bain.toBool())
+		ui->tabBar->addTab("Bain");
+	else
+		ui->tabBar->removeTab("Bain");
 }
 
 void MainWindow::resultsPageLoaded(bool success)
