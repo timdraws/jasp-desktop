@@ -15,460 +15,195 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-BinomialTestBayesian <- function(dataset = NULL, options, perform = "run",
-						   callback = function(...) 0,  ...) {
-
-	variables <- unlist(options$variables)
+BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	
-	
+  # Update options
+  if (options$hypothesis == "notEqualToTestValue") {
+    options[["hypothesisRec"]] <- "two.sided"
+  } else if (options$hypothesis == "greaterThanTestValue") {
+    options[["hypothesisRec"]] <- "greater"
+  } else {
+    options[["hypothesisRec"]] <- "less"
+  }
+  
+  if (options$bayesFactorType == "BF01") {
+    
+    options[["BFH1H0"]] <- FALSE
+    
+    if (options$hypothesis == "notEqualToTestValue") {
+      options[["bf.title"]] <- "BF\u2080\u2081"
+    } else if (options$hypothesis == "greaterThanTestValue") {
+      options[["bf.title"]] <- "BF\u2080\u208A"
+    } else if (options$hypothesis == "lessThanTestValue") {
+      options[["bf.title"]] <-  "BF\u2080\u208B"
+    }
+    
+  } else if (options$bayesFactorType == "BF10") {
+    
+    options[["BFH1H0"]] <- TRUE
+    
+    if (options$hypothesis == "notEqualToTestValue"){
+      options[["bf.title"]] <- "BF\u2081\u2080"
+    } else if (options$hypothesis == "greaterThanTestValue"){
+      options[["bf.title"]] <- "BF\u208A\u2080"
+    } else if (options$hypothesis == "lessThanTestValue"){
+      options[["bf.title"]] <- "BF\u208B\u2080"
+    }
+    
+  } else if (options$bayesFactorType == "LogBF10") {
+    
+    options[["BFH1H0"]] <- TRUE
+    
+    if (options$hypothesis == "notEqualToTestValue"){
+      options[["bf.title"]] <- "Log(\u0042\u0046\u2081\u2080)"
+    } else if (options$hypothesis == "greaterThanTestValue"){
+      options[["bf.title"]] <-"Log(\u0042\u0046\u208A\u2080)"
+    } else if (options$hypothesis == "lessThanTestValue"){
+      options[["bf.title"]] <- "Log(\u0042\u0046\u208B\u2080)"
+    }
+  }
+  
+  # Read dataset
 	if (is.null(dataset)) {
-		
-		if (perform == "run") {
-			
-			dataset <- .readDataSetToEnd(columns.as.numeric=NULL, columns.as.factor=variables, exclude.na.listwise=NULL)
-		
-		} else {
-			
-			dataset <- .readDataSetHeader(columns.as.numeric=NULL, columns.as.factor=variables)
-		}
-	
+	  dataset <- .readDataSetToEnd(columns.as.numeric = NULL, columns.as.factor = options$variables, exclude.na.listwise = NULL)
 	} else {
-		
-		dataset <- .vdf(dataset, columns.as.numeric=NULL, columns.as.factor=variables)
+	  dataset <- .vdf(dataset, columns.as.numeric = NULL, columns.as.factor = options$variables)
+	}
+
+  # Set title
+	jaspResults$title <- "Bayesian Binomial Test"
+	
+	# Check if results can be computed
+	ready <- (length(options$variables) > 0)
+	
+	# Check for errors
+	if (ready) {
+	  
+	  # Error check 1: 0 observations for a level of a variable
+	  for (variable in options$variables) {
+	    
+	    column <- dataset[[ .v(variable) ]]
+	    data <- column[!is.na(column)]
+	    levels <- levels(data)
+	    
+	    for (level in levels) {
+	      .hasErrors(data[data == level], perform = "run", type = 'observations',
+	                 observations.amount = c('< 1'), exitAnalysisIfErrors = TRUE)
+	    }
+	  }
+	  
+	  # Error check 2: Test value should match hypotheses
+	  if (options$testValue == 1 && options$hypothesis == "greater") {
+	    .quitAnalysis(message = "The hypothesis that the test value is greater than 1 cannot be tested.")
+	  } else if (options$testValue == 0 && options$hypothesis == "less") {
+	    .quitAnalysis(message = "The hypothesis that the test value is less than 0 cannot be tested.")
+	  }
 	}
 	
-	results <- list()
+	# Create Bayesian Binomial Table
+	.createBayesianBinomialTable(jaspResults = jaspResults, dataset = dataset, options = options, ready = ready)
 	
-	results[["title"]] <- "Bayesian Binomial Test"
-	
-	meta <- list(list(name="binomial", type="table"))
-	meta[[2]] <- list(name="plots", type="collection", meta=list(name="plotGroups", type="object",
-																 meta=list(list(name="PriorPosteriorPlot", type="image"),
-																		   list(name="SequentialAnalysisPlot", type="image"))))
-	results[[".meta"]] <- meta
-	
-	table <- list()
-	
-	table[["title"]] <- "Bayesian Binomial Test"
-	table[["citation"]] <- list("Jeffreys, H. (1961). Theory of Probability. Oxford, Oxford University Press.",
-								"O’Hagan, A., & Forster, J. (2004). Kendall’s advanced theory of statistics vol. 2B: Bayesian inference (2nd ed.). London: Arnold.",
-								"Haldane, J. B. S. (1932). A note on inverse probability. Mathematical Proceedings of the Cambridge Philosophical Society, 28, 55-61.")
-	
-	if (options$bayesFactorType == "BF01") {
-		
-		BFH1H0 <- FALSE
-		
-		if (options$hypothesis == "notEqualToTestValue"){
-			bf.title <- "BF\u2080\u2081"
-		} else if (options$hypothesis == "greaterThanTestValue"){
-			bf.title <- "BF\u2080\u208A"
-		} else if (options$hypothesis == "lessThanTestValue"){
-			bf.title <-  "BF\u2080\u208B"
-		}
-		
-	} else if (options$bayesFactorType == "BF10") {
-		
-		BFH1H0 <- TRUE
-		
-		if (options$hypothesis == "notEqualToTestValue"){
-			bf.title <- "BF\u2081\u2080"
-		} else if (options$hypothesis == "greaterThanTestValue"){
-			bf.title <- "BF\u208A\u2080"
-		} else if (options$hypothesis == "lessThanTestValue"){
-			bf.title <- "BF\u208B\u2080"
-		}
-		
-	} else if (options$bayesFactorType == "LogBF10") {
-		
-		BFH1H0 <- TRUE
-		
-		if (options$hypothesis == "notEqualToTestValue"){
-			bf.title <- "Log(\u0042\u0046\u2081\u2080)"
-		} else if (options$hypothesis == "greaterThanTestValue"){
-			bf.title <-"Log(\u0042\u0046\u208A\u2080)"
-		} else if (options$hypothesis == "lessThanTestValue"){
-			bf.title <- "Log(\u0042\u0046\u208B\u2080)"
-		}
+	# Create Bayesian Binomial Plots Container (if wanted and if results can be computed)
+	if ((options$plotPriorAndPosterior == TRUE || options$plotSequentialAnalysis == TRUE) && ready == TRUE) {
+	  .createBayesianBinomialPlotsContainerTotal(jaspResults = jaspResults, dataset = dataset, options = options)
 	}
 	
+	# Bring state up-to-date
+	state[["options"]] <- options
 	
-	footnotes <- .newFootnotes()
-	
-	if (options$hypothesis == "notEqualToTestValue") {
-		
-		hyp <- "two.sided"
-		message <- paste0("Proportions tested against value: ", options$testValue, ".")
-		.addFootnote(footnotes, symbol="<em>Note.</em>", text=message)
-		
-	} else if (options$hypothesis == "greaterThanTestValue") {
-		
-		hyp <- "greater"
-		note <- "For all tests, the alternative hypothesis specifies that the proportion
-					is greater than "
-		message <- paste0(note, options$testValue, ".")
-		.addFootnote(footnotes, symbol="<em>Note.</em>", text=message)
-		
-	} else {
-		
-		hyp <- "less"
-		note <- "For all tests, the alternative hypothesis specifies that the proportion
-					is less than "
-		message <- paste0(note, options$testValue, ".")
-		.addFootnote(footnotes, symbol="<em>Note.</em>", text=message)
-		
-	}
-	
-	
-	schema <- list(fields=list(
-		list(name="case", title="", type="string", combine=TRUE),
-		list(name="level", title="Level", type="string"),
-		list(name="counts", title="Counts", type="integer"),
-		list(name="total", title="Total", type="integer"),
-		list(name="proportion", title="Proportion", type="number", format="sf:4;dp:3"),
-		list(name="BF", title=bf.title, type="number", format="sf:4;dp:3", title = bf.title)
-		))
-	
-	table[["schema"]] <- schema
-	
-	# if state, retrieve and check differences
-	
-	state <- .retrieveState()
-	diff <- NULL
-	
-	if (!is.null(state))
-		diff <- .diff(options, state$options)
-	
-	data <- list()
-	plotGroups <- list()
-	plotsBinomtest <- list()
-	rowsBinomtest <- list()
-	rowsBF10 <- numeric()
-	plotIdentifier <- character()
-	rowIdentifier <- character()
-	
-	# beta distribution parameters
-	a <- options$priorA
-	b <- options$priorB
-	
-	errorMessageTable <- NULL
-	
-	if (options$testValue == 1 && hyp == "greater") {
-	
-		errorMessageTable <- "Cannot test the hypothesis that the test value is greater than 1."
-	
-	} else if (options$testValue == 0 && hyp == "less") {
-	
-		errorMessageTable <- "Cannot test the hypothesis that the test value is less than 0."
-	}
-	
-	if (perform == "run" && !is.null(variables)) {
-	
-		i <- 1 # plotGroups index
-		j <- 1 # plot index
-		r <- 1 # rowIdentifier index
-		
-		for (var in variables) {
-			
-			d <- dataset[[.v(var)]]
-			d <- d[!is.na(d)]
-			
-			levels <- levels(d)
-			n <- length(d)
-			
-			for (lev in levels) {
-				
-				rowIdentifier[r] <- paste(c(var, lev), collapse = " - ")
-				counts <- sum(d == lev)
-				prop <- counts/n
-				
-				if (!is.null(state) && rowIdentifier[r] %in% state$rowIdentifier && ! diff$testValue && ! diff$hypothesis && ! diff$priorA &&
-					! diff$priorB && ! diff$bayesFactorType) {
-						
-						index <- which(state$rowIdentifier == rowIdentifier[r])
-						row <- state$rowsBinomtest[[index]]
-						BF10 <- state$rowsBF10[index]
-						rowsBF10[r] <- BF10
-						
-				} else {
-					
-					BF10 <- .bayesBinomialTest(counts, n, options$testValue, hypothesis = hyp, a = a, b = b)
-					rowsBF10[r] <- BF10
-					
-					# TODO: If try-error extract error message and display
-					
-					BF <- BF10
-					
-					if (options$bayesFactorType == "BF01") {
-						BF <- 1/BF10
-					} else if(options$bayesFactorType == "LogBF10") {
-						BF <- log(BF10)
-					}
-					
-					row <- list(case=var, level=lev, counts=.clean(counts), total=.clean(n), proportion=.clean(prop), BF=.clean(BF))
-					
-					if (lev == levels[1]) {
-						row[[".isNewGroup"]] <- TRUE
-					} else {
-						row[[".isNewGroup"]] <- FALSE
-					}
-				}
-				
-				data[[length(data) + 1]] <- row
-				rowsBinomtest[[r]] <- row
-				r <- r + 1
-				
-				####################################################
-				###               PLOTS run phase                ###
-				####################################################
-				
-				
-				if (options$plotPriorAndPosterior || options$plotSequentialAnalysis) {
-			
-					plotGroups[[i]] <- list()
-					plotGroups[[i]][["title"]] <- paste(c(var, lev), collapse = " - ")
-					plotGroups[[i]][["name"]] <- plotGroups[[i]][["title"]]
-					
-				}
-				
-				if (options$plotPriorAndPosterior && is.null(errorMessageTable)) {
-					
-					plotType <- ifelse(options$plotPriorAndPosteriorAdditionalInfo, "PriorPosteriorAddInfoPlot:", "PriorPosteriorPlot:")
-					plotIdentifier[j] <- paste0(plotType, plotGroups[[i]][["name"]])
-					
-					
-					if (!is.null(state) && plotIdentifier[j] %in% state$plotIdentifier && ! diff$testValue && ! diff$hypothesis && ! diff$priorA && ! diff$priorB) {
-						
-						index <- which(state$plotIdentifier == plotIdentifier[j])
-						plot <- state$plotsBinomtest[[index]]
-					
-					} else {
-						
-						plot <- list()
-					
-						plot[["title"]] <- "Prior and Posterior"
-						plot[["width"]]  <- 530
-						plot[["height"]] <- 400
-					
-						p <- try(silent=FALSE, expr= {
-							
-									func <- function() { 
-										 .plotPosterior.binomTest(counts, n, options$testValue, a = a, b = b, BF10, hypothesis = hyp,
- 											addInformation = options$plotPriorAndPosteriorAdditionalInfo)
-									}
-									imgObj <- .writeImage(530, 400, func)
-									
-									plot[["data"]] <- imgObj[["png"]]
-									plot[["obj"]] <- imgObj[["obj"]]
-									plot[["convertible"]] <- TRUE
-									plot[["status"]] <- "complete"
-									
-								})
-								
-						if (class(p) == "try-error") {
-						
-							errorMessage <- .extractErrorMessage(p)
-							plot[["error"]] <- list(error="badData", errorMessage= paste("Plotting is not possible:", errorMessage))
-						}
-						
-					}
-					
-					plotGroups[[i]][["PriorPosteriorPlot"]] <- plot
-					plotsBinomtest[[j]] <- plot
-					j <- j + 1
-					
-				}
-				
-				if (options$plotSequentialAnalysis && is.null(errorMessageTable)) {
-					
-					plotIdentifier[j] <- paste("SequentialAnalysisPlot:", plotGroups[[i]][["name"]])
-					
-					if (!is.null(state) && plotIdentifier[j] %in% state$plotIdentifier && ! diff$testValue && ! diff$hypothesis && ! diff$bayesFactorType && ! diff$priorA && ! diff$priorB) {
-						
-						index <- which(state$plotIdentifier == plotIdentifier[j])
-						plot <- state$plotsBinomtest[[index]]
-					
-					} else {
-						
-						plot <- list()
-						
-						plot[["title"]] <- "Sequential Analysis"
-						plot[["width"]]  <- 530
-						plot[["height"]] <- 400
-						
-						p <- try(silent=FALSE, expr= {
-									# image <- .beginSaveImage(530, 400)
-									# .plotSequentialBF.binomTest(d, lev, options$testValue, a = a, b = b, BF10table = BF10, hypothesis = hyp, BFH1H0 = BFH1H0)
-									# plot[["data"]] <- .endSaveImage(image)
-						    .plotFunc <- function() {
-						        .plotSequentialBF.binomTest(d, lev, options$testValue, a = a, b = b, BF10table = BF10, hypothesis = hyp, BFH1H0 = BFH1H0)
-						    }
-						    content <- .writeImage(width = 530, height = 400, plot = .plotFunc, obj = TRUE)
-						    plot[["convertible"]] <- TRUE
-						    plot[["obj"]] <- content[["obj"]]
-						    plot[["data"]] <- content[["png"]]
-						})
-								
-						if (isTryError(p)) {
-						    errorMessage <- .extractErrorMessage(p)
-							plot[["error"]] <- list(error="badData", errorMessage= paste("Plotting is not possible:", errorMessage))
-						}
-						
-					}
-					
-					plotGroups[[i]][["SequentialAnalysisPlot"]] <- plot
-					plotsBinomtest[[j]] <- plot
-					j <- j + 1
-					
-				}
-				
-				i <- i + 1
-				
-			}
-		}
-		
-	} else {
-		
-		
-		if (is.null(variables)) {
-			
-			data[[length(data) + 1]] <- list(case=".", level=".", counts=".", total=".",  proportion=".", p=".")
-			variables <- ""
-		}
-	
-		for (var in variables) {
-		
-			d <- dataset[[.v(var)]]
-			levels <- levels(d)
-			
-			for (lev in levels) {
-				
-				rowIdentifier[length(rowIdentifier) + 1] <- paste(c(var, lev), collapse = " - ")
-				
-				if (!is.null(state) && rowIdentifier[length(rowIdentifier)] %in% state$rowIdentifier && ! diff$testValue && ! diff$hypothesis && ! diff$priorA &&
-					! diff$priorB && ! diff$bayesFactorType) {
-						
-						index <- which(state$rowIdentifier == rowIdentifier[length(rowIdentifier)])
-						data[[length(data) + 1]] <- state$rowsBinomtest[[index]]
-						rowsBinomtest[[length(rowsBinomtest) + 1]] <- state$rowsBinomtest[[index]]
-						
-				} else {
-					
-					data[[length(data) + 1]] <- list(case=var, level=lev, counts=".", total=".",  proportion=".", p=".")
-					rowsBinomtest[[length(rowsBinomtest) + 1]] <- list(case=var, level=lev, counts=".", total=".",  proportion=".", p=".")
-				}
-				
-				####################################################
-				###               PLOTS init phase               ###
-				####################################################
-				
-				
-				if (options$plotPriorAndPosterior || options$plotSequentialAnalysis) {
-			
-					plotGroups[[length(plotGroups) + 1]] <- list()
-					plotGroups[[length(plotGroups)]][["title"]] <- paste(c(var, lev), collapse = " - ")
-					plotGroups[[length(plotGroups)]][["name"]] <- plotGroups[[length(plotGroups)]][["title"]]
-					
-				}
-				
-				if (options$plotPriorAndPosterior && is.null(errorMessageTable)) {
-					
-					plotType <- ifelse(options$plotPriorAndPosteriorAdditionalInfo, "PriorPosteriorAddInfoPlot:", "PriorPosteriorPlot:")
-					plotIdentifier[length(plotIdentifier) + 1] <- paste0(plotType, plotGroups[[length(plotGroups)]][["name"]])
-					
-					if (!is.null(state) && plotIdentifier[length(plotIdentifier)] %in% state$plotIdentifier && ! diff$testValue && ! diff$hypothesis && ! diff$priorA && ! diff$priorB) {
-						
-						index <- which(state$plotIdentifier == plotIdentifier[length(plotIdentifier)])
-						plot <- state$plotsBinomtest[[index]]
-						
-					} else {
-						
-						plot <- list()
-						
-						plot[["title"]] <- "Prior and Posterior"
-						plot[["width"]]  <- 530
-						plot[["height"]] <- 400
-						
-						func <- function() {
-							.plotPosterior.binomTest(dontPlotData = TRUE, addInformation = options$plotPriorAndPosteriorAdditionalInfo)
-						}
-						imgObj <- .writeImage(530, 400, func)
-						
-						plot[["data"]] <- imgObj[["png"]]
-						plot[["obj"]] <- imgObj[["obj"]]
-						plot[["convertible"]] <- TRUE
-						plot[["status"]] <- "complete"
-					}
-					
-					plotGroups[[length(plotGroups)]][["PriorPosteriorPlot"]] <- plot
-					plotsBinomtest[[length(plotsBinomtest) + 1]] <- plot
-					
-				}
-				
-				if (options$plotSequentialAnalysis && is.null(errorMessageTable)) {
-					
-					plotIdentifier[length(plotIdentifier) + 1] <- paste("SequentialAnalysisPlot:", plotGroups[[length(plotGroups)]][["name"]])
-					
-					if (!is.null(state) && plotIdentifier[length(plotIdentifier)] %in% state$plotIdentifier && ! diff$testValue && ! diff$hypothesis && ! diff$bayesFactorType &&
-						! diff$priorA && ! diff$priorB) {
-						
-						index <- which(state$plotIdentifier == plotIdentifier[length(plotIdentifier)])
-						plot <- state$plotsBinomtest[[index]]
-					
-					} else {
-						
-						plot <- list()
-						
-						plot[["title"]] <- "Sequential Analysis"
-						plot[["width"]]  <- 530
-						plot[["height"]] <- 400
-						
-						.plotFunc <- function() {
-								.plotSequentialBF.binomTest(dontPlotData = TRUE, hypothesis = hyp, BFH1H0 = BFH1H0)
-						}
-						content <- .writeImage(width = 530, height = 400, plot = .plotFunc, obj = TRUE)
-						
-						plot[["convertible"]] <- TRUE
-						plot[["obj"]] <- content[["obj"]]
-						plot[["data"]] <- content[["png"]]
-						
-					}
-					
-					plotGroups[[length(plotGroups)]][["SequentialAnalysisPlot"]] <- plot
-					plotsBinomtest[[length(plotsBinomtest) + 1]] <- plot
-					
-				}
-			}
-		}
-	}
-	
-	table[["data"]] <- data
-	
-	
-	if ( ! is.null(errorMessageTable))
-		table[["error"]] <- list(errorType = "badData", errorMessage = errorMessageTable)
-	
-	table[["footnotes"]] <- as.list(footnotes)
-	
-	results[["binomial"]] <- table
-	
-	if (options$plotPriorAndPosterior || options$plotSequentialAnalysis)
-		results[["plots"]] <- list(title=ifelse(length(plotGroups) == 1 && length(plotGroups[[1]]) == 3, "Plot", "Plots"), collection=plotGroups)
-	
-	keep <- NULL
-	
-	for (plot in plotsBinomtest)
-		keep <- c(keep, plot$data)
-	
-	if (perform == "init") {
-		
-		return(list(results=results, status="inited", state=state, keep=keep))
-		
-	} else {
-	
-		return(list(results=results, status="complete", state=list(options=options, results=results, plotsBinomtest=plotsBinomtest,
-					plotIdentifier=plotIdentifier, rowsBinomtest=rowsBinomtest, rowIdentifier=rowIdentifier, rowsBF10=rowsBF10), keep=keep))
-	}
-} 
+	return(state = state)
+}
+
+.createBayesianBinomialTable <- function(jaspResults, dataset, options, ready) {
+  
+  # Check if object can be reused (in case relevant options did not change)
+  if (!is.null(jaspResults[["bayesianBinomialTable"]])) {
+    return(NULL)
+  }
+  
+  # Create table
+  bayesianBinomialTable <- createJaspTable(title = "Bayesian Binomial Test")
+  jaspResults[["bayesianBinomialTable"]] <- bayesianBinomialTable
+  bayesianBinomialTable$showSpecifiedColumnsOnly <- TRUE
+  bayesianBinomialTable$dependOnOptions(c("variables", "testValue", "priorA", "priorB", "hypothesis", "bayesFactorType"))
+  
+  # Add columns to table
+  bayesianBinomialTable$addColumnInfo(name = "variable",   title = "",           type = "string", combine = TRUE)
+  bayesianBinomialTable$addColumnInfo(name = "level",      title = "Level",      type = "string")
+  bayesianBinomialTable$addColumnInfo(name = "counts",     title = "Counts",     type = "integer")
+  bayesianBinomialTable$addColumnInfo(name = "total",      title = "Total",      type = "integer")
+  bayesianBinomialTable$addColumnInfo(name = "proportion", title = "Proportion", type = "number", format = "sf:4;dp:3")
+  bayesianBinomialTable$addColumnInfo(name = "bf",         title = bf.title,     type = "number", format = "sf:4;dp:3")
+  
+  # Fill up table with results
+  .fillUpBayesianBinomialTable(bayesianBinomialTable = bayesianBinomialTable, dataset = dataset, options = options, ready = ready)
+  
+  return(NULL)
+}
+
+.fillUpBayesianBinomialTable <- function(bayesianBinomialTable, dataset, options, ready) {
+  
+  # If results can be computed, compute them and add row for each level of each variable
+  if (ready == TRUE) {
+    
+    for (variable in options$variables) {
+      
+      # Prepare for running the binomial test
+      column <- dataset[[ .v(variable) ]]
+      data <- column[!is.na(column)]
+      levels <- levels(data)
+      
+      for (level in levels) {
+        .addRowForBayesianBinomialTable(bayesianBinomialTable = bayesianBinomialTable, data = data, options = options,
+                                        variable = variable, level = level)
+      }
+    }
+    
+    # Add footnote: Alternative hypothesis
+    if (options$hypothesisRec == "two.sided") {
+      message <- paste0("Proportions tested against value: ", options$testValue, ".")
+    } else if (options$hypothesisRec == "greater") {
+      message <- paste0("For all tests, the alternative hypothesis specifies that the proportion is greater than ", options$testValue, ".")
+    } else if (options$hypothesisRec == "less") {
+      message <- paste0("For all tests, the alternative hypothesis specifies that the proportion is less than ", options$testValue, ".")
+    }
+    bayesianBinomialTable$addFootnote(message = message, symbol = "<em>Note.</em>")
+    
+    # If results cannot be computed, add an empty row
+  } else {
+    row <- list(variable = ".", level = ".", counts = ".", total = ".", proportion = ".", bf = ".")
+    bayesianBinomialTable$addRows(row)
+  }
+
+  return(NULL)
+}
+
+.addRowForBayesianBinomialTable <- function(bayesianBinomialTable, data, options, variable = variable, level = level) {
+  
+  # Compute results except for Bayes Factor
+  counts     <- sum(data == level)
+  total      <- length(data)
+  proportion <- counts/total
+  
+  # Compute Bayes Factor
+  BF10 <- .bayesBinomialTest(counts, n, theta0 = options$testValue, hypothesis = options$hypothesis, a = options$priorA, b = options$priorB)
+  bf <- BF10
+  if (options$bayesFactorType == "BF01") {
+    bf <- 1/BF10
+  } else if (options$bayesFactorType == "LogBF10") {
+    bf <- log(BF10)
+  }
+  
+  # Add row to table
+  row <- list(variable = .clean(variable), level = .clean(level), counts = .clean(counts), total = .clean(total), 
+              proportion = .clean(proportion), bf = .clean(bf))
+  bayesianBinomialTable$addRows(row, rowNames = paste0(variable, " - ", level))
+  
+  return(NULL)
+}
+  
+
+
 
 #.bayesBinomialTest.twoSided.jeffreys <- function(counts, n, theta0) {
 #	# assuming a = b = 1, i.e., uniform prior
@@ -485,13 +220,11 @@ BinomialTestBayesian <- function(dataset = NULL, options, perform = "run",
 	if (theta0 == 0 && counts == 0) {
 	
 		# in this case, counts*log(theta0) should be zero, omit to avoid numerical issue with log(0)
-		
 		logBF10 <- lbeta(counts + a, n - counts + b) -  lbeta(a, b) - (n - counts)*log(1 - theta0)
 		
 	} else if (theta0 == 1 && counts == n) {
 	
 		# in this case, (n - counts)*log(1 - theta0) should be zero, omit to avoid numerical issue with log(0)
-		
 		logBF10 <- lbeta(counts + a, n - counts + b) -  lbeta(a, b) - counts*log(theta0) 
 		
 	} else {
@@ -551,15 +284,8 @@ BinomialTestBayesian <- function(dataset = NULL, options, perform = "run",
 		
 	} else {
 		
-		#if (theta0 == 0 || theta0 == 1) {
-		#	
-		#	BF10 <- NA
-		#	
-		#} else {
-			
 			BF10 <- try(.bayesBinomialTest.oneSided(counts, n, theta0, a, b, hypothesis), silent = TRUE)
-			
-		#}
+
 	}
 	
 	if (class(BF10) == "try-error")
