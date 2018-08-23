@@ -18,13 +18,6 @@
 BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	
   # Update options
-  if (options$hypothesis == "notEqualToTestValue") {
-    options[["hypothesisRec"]] <- "two.sided"
-  } else if (options$hypothesis == "greaterThanTestValue") {
-    options[["hypothesisRec"]] <- "greater"
-  } else {
-    options[["hypothesisRec"]] <- "less"
-  }
   
   if (options$bayesFactorType == "BF01") {
     
@@ -93,9 +86,9 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	  }
 	  
 	  # Error check 2: Test value should match hypotheses
-	  if (options$testValue == 1 && options$hypothesis == "greater") {
+	  if (options$testValue == 1 && options$hypothesis == "greaterThanTestValue") {
 	    .quitAnalysis(message = "The hypothesis that the test value is greater than 1 cannot be tested.")
-	  } else if (options$testValue == 0 && options$hypothesis == "less") {
+	  } else if (options$testValue == 0 && options$hypothesis == "lessThanTestValue") {
 	    .quitAnalysis(message = "The hypothesis that the test value is less than 0 cannot be tested.")
 	  }
 	}
@@ -160,11 +153,11 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
     }
     
     # Add footnote: Alternative hypothesis
-    if (options$hypothesisRec == "two.sided") {
+    if (options$hypothesis == "notEqualToTestValue") {
       message <- paste0("Proportions tested against value: ", options$testValue, ".")
-    } else if (options$hypothesisRec == "greater") {
+    } else if (options$hypothesisRec == "greaterThanTestValue") {
       message <- paste0("For all tests, the alternative hypothesis specifies that the proportion is greater than ", options$testValue, ".")
-    } else if (options$hypothesisRec == "less") {
+    } else if (options$hypothesisRec == "lessThanTestValue") {
       message <- paste0("For all tests, the alternative hypothesis specifies that the proportion is less than ", options$testValue, ".")
     }
     bayesianBinomialTable$addFootnote(message = message, symbol = "<em>Note.</em>")
@@ -186,7 +179,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
   proportion <- counts/total
   
   # Compute Bayes Factor
-  BF10 <- .bayesBinomialTest(counts, n, theta0 = options$testValue, hypothesis = options$hypothesis, a = options$priorA, b = options$priorB)
+  BF10 <- .bayesBinomialTest(counts = counts, total = total, theta0 = options$testValue, hypothesis = options$hypothesis, a = options$priorA, b = options$priorB)
   bf <- BF10
   if (options$bayesFactorType == "BF01") {
     bf <- 1/BF10
@@ -205,31 +198,31 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 
 
 
-#.bayesBinomialTest.twoSided.jeffreys <- function(counts, n, theta0) {
+#.bayesBinomialTest.twoSided.jeffreys <- function(counts, total, theta0) {
 #	# assuming a = b = 1, i.e., uniform prior
 #	
-#	logBF01 <- lgamma(n + 2) - lgamma(counts + 1) - lgamma(n - counts + 1) + counts*log(theta0) + (n - counts)*log(1 - theta0)
+#	logBF01 <- lgamma(total + 2) - lgamma(counts + 1) - lgamma(total - counts + 1) + counts*log(theta0) + (total - counts)*log(1 - theta0)
 #	BF10 <- 1 / exp(logBF01)
 #	
 #	return(BF10)
 #	
 #}
 
-.bayesBinomialTest.twoSided <- function(counts, n, theta0, a, b) {
+.bayesBinomialTest.twoSided <- function(counts, total, theta0, a, b) {
 	
 	if (theta0 == 0 && counts == 0) {
 	
 		# in this case, counts*log(theta0) should be zero, omit to avoid numerical issue with log(0)
-		logBF10 <- lbeta(counts + a, n - counts + b) -  lbeta(a, b) - (n - counts)*log(1 - theta0)
+		logBF10 <- lbeta(counts + a, total - counts + b) -  lbeta(a, b) - (total - counts)*log(1 - theta0)
 		
-	} else if (theta0 == 1 && counts == n) {
+	} else if (theta0 == 1 && counts == total) {
 	
-		# in this case, (n - counts)*log(1 - theta0) should be zero, omit to avoid numerical issue with log(0)
-		logBF10 <- lbeta(counts + a, n - counts + b) -  lbeta(a, b) - counts*log(theta0) 
+		# in this case, (total - counts)*log(1 - theta0) should be zero, omit to avoid numerical issue with log(0)
+		logBF10 <- lbeta(counts + a, total - counts + b) -  lbeta(a, b) - counts*log(theta0) 
 		
 	} else {
 	
-		logBF10 <- lbeta(counts + a, n - counts + b) -  lbeta(a, b) - counts*log(theta0) - (n - counts)*log(1 - theta0)
+		logBF10 <- lbeta(counts + a, total - counts + b) -  lbeta(a, b) - counts*log(theta0) - (total - counts)*log(1 - theta0)
 	}
 	
 	BF10 <- exp(logBF10)
@@ -238,13 +231,13 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	
 }
 
-.bayesBinomialTest.oneSided <- function(counts, n, theta0, a, b, hypothesis) {
+.bayesBinomialTest.oneSided <- function(counts, total, theta0, a, b, hypothesis) {
   
-  if (hypothesis == "less") {
+  if (hypothesis == "lessThanTestValue") {
     
     lowerTail <- TRUE
     
-  } else if (hypothesis == "greater") {
+  } else if (hypothesis == "greaterThanTestValue") {
     
     lowerTail <- FALSE
     
@@ -253,21 +246,21 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
   if (theta0 == 0 && counts == 0) {
     
     # in this case, counts*log(theta0) should be zero, omit to avoid numerical issue with log(0)
-    logMLikelihoodH0 <- (n - counts)*log(1 - theta0)
+    logMLikelihoodH0 <- (total - counts)*log(1 - theta0)
     
-  } else if (theta0 == 1 && counts == n) {
+  } else if (theta0 == 1 && counts == total) {
     
-    # in this case, (n - counts)*log(1 - theta0) should be zero, omit to avoid numerical issue with log(0)
+    # in this case, (total - counts)*log(1 - theta0) should be zero, omit to avoid numerical issue with log(0)
     logMLikelihoodH0 <- counts*log(theta0)
 
   } else {
   
-  logMLikelihoodH0 <- counts*log(theta0) + (n - counts)*log(1 - theta0)
+  logMLikelihoodH0 <- counts*log(theta0) + (total - counts)*log(1 - theta0)
   
   }
   
-  term1 <- pbeta(theta0, a + counts, b + n - counts, lower.tail = lowerTail, log.p = TRUE) +
-    lbeta(a + counts, b + n - counts)
+  term1 <- pbeta(theta0, a + counts, b + total - counts, lower.tail = lowerTail, log.p = TRUE) +
+    lbeta(a + counts, b + total - counts)
   term2 <- lbeta(a,b) + pbeta(theta0, a, b, lower.tail = lowerTail, log.p = TRUE)
   logMLikelihoodH1 <- term1 - term2
   BF10 <- exp(logMLikelihoodH1 - logMLikelihoodH0)
@@ -276,38 +269,180 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
   
 }
 
-.bayesBinomialTest <- function(counts, n, theta0, hypothesis, a, b) {
+.bayesBinomialTest <- function(counts, total, theta0, hypothesis, a, b) {
 	
-	if (hypothesis == "two.sided") {
+	if (hypothesis == "notEqualToTestValue") {
 		
-		BF10 <- try(.bayesBinomialTest.twoSided(counts, n, theta0, a, b), silent = TRUE)
+		BF10 <- try(.bayesBinomialTest.twoSided(counts, total, theta0, a, b), silent = TRUE)
 		
 	} else {
 		
-			BF10 <- try(.bayesBinomialTest.oneSided(counts, n, theta0, a, b, hypothesis), silent = TRUE)
+			BF10 <- try(.bayesBinomialTest.oneSided(counts, total, theta0, a, b, hypothesis), silent = TRUE)
 
 	}
 	
 	if (class(BF10) == "try-error")
 		BF10 <- NA
-	
+
 	return(BF10)
 	
 }
 
-.dpriorTheta <- function(x, a = 1, b = 1, hypothesis = "two.sided", theta0 = .5) {
+#################### Plots ####################
+
+.createBayesianBinomialPlotsContainerTotal <- function(jaspResults, dataset, options){
+  
+  # Check if object can be reused (in case relevant options did not change)
+  if (!is.null(jaspResults[["bayesianBinomialPlotsContainerTotal"]])) {
+    return(NULL)
+  }
+  
+  # Create container for all variables
+  bayesianBinomialPlotsContainerTotal <- createJaspContainer(title = "Plots")
+  jaspResults[["bayesianBinomialPlotsContainerTotal"]] <- bayesianBinomialPlotsContainerTotal
+  bayesianBinomialPlotsContainerTotal$dependOnOptions(c("variables", "testValue", "priorA", "priorB",
+                                                        "hypothesis", "bayesFactorType", "plotPriorAndPosterior",
+                                                        "plotPriorAndPosteriorAdditionalInfo", "plotSequentialAnalysis"))
+  
+  # Create subcontainer for each variable
+  for (variable in options$variables) {
+    .createBayesianBinomialPlotsContainerVariable(bayesianBinomialPlotsContainerTotal = bayesianBinomialPlotsContainerTotal,
+                                                  dataset = dataset, options = options, variable = variable)
+  }
+  
+  return(NULL)
+  
+}
+
+.createBayesianBinomialPlotsContainerVariable <- function(bayesianBinomialPlotsContainerTotal, dataset, 
+                                                          options, variable) {
+  
+  # Check if object can be reused (in case relevant options did not change)
+  if (!is.null(bayesianBinomialPlotsContainerTotal[[variable]])) {
+    return(NULL)
+  }
+  
+  # Create subcontainer for variable
+  .createBayesianBinomialPlotsContainerVariable <- createJaspContainer(title = variable)
+  bayesianBinomialPlotsContainerTotal[[variable]] <- .createBayesianBinomialPlotsContainerVariable
+  .createBayesianBinomialPlotsContainerVariable$dependOnOptions(c("variables", "testValue", "priorA", "priorB",
+                                                                  "hypothesis", "bayesFactorType", "plotPriorAndPosterior",
+                                                                  "plotPriorAndPosteriorAdditionalInfo", "plotSequentialAnalysis"))
+  
+  # Get levels and data for variable
+  column <- dataset[[ .v(variable) ]]
+  data <- column[!is.na(column)]
+  levels <- levels(data)
+  
+  # For each level, add plot
+  for (level in levels) {
+    .addBayesianBinomialPlot(bayesianBinomialPlotsContainerVariable = bayesianBinomialPlotsContainerVariable,
+                             data = data, options = options, variable = variable, level = level)
+  }
+  
+  return(NULL)
+}
+
+.addBayesianBinomialPlot <- function(bayesianBinomialPlotsContainerVariable, data, options,
+                                     variable, level) {
+  
+  # Check if object can be reused (in case relevant options did not change)
+  if (!is.null(bayesianBinomialPlotsContainerVariable[[level]])) {
+    return(NULL)
+  }
+  
+  # Make plot
+  Plot <- .makeBayesianBinomialPlot(data = data, options = options, 
+                                    variable = variable, level = level)
+  
+  # Add plot to container
+  bayesianBinomialPriorPosteriorPlotsLevel <- createJaspPlot(plot = descriptivesPlot, title = level)
+  bayesianBinomialPlotsContainerVariable[[level]] <- bayesianBinomialPriorPosteriorPlotsLevel
+  bayesianBinomialPriorPosteriorPlotsLevel$dependOnOptions(c("variables", "testValue", "priorA", "priorB",
+                                                           "hypothesis", "bayesFactorType", "plotPriorAndPosterior",
+                                                           "plotPriorAndPosteriorAdditionalInfo", "plotSequentialAnalysis"))
+  
+  sink("~/Desktop/testcommon.txt", append = T)
+  print(bayesianBinomialPriorPosteriorPlotsLevel)
+  sink()
+  
+  return(NULL)
+}
+
+.makeBinomialDescriptivesPlot <- function(data, options, variable, level) {
+  
+  # Define base breaks function for y
+  base_breaks_y <- function(x, testValue) {
+    d <- data.frame(x = -Inf, xend = -Inf, y = 0, yend = 1)
+    list(ggplot2::geom_segment(data = d, ggplot2::aes(x = x, y = y, xend = xend,
+                                                      yend = yend),
+                               inherit.aes = FALSE, size = 1),
+         ggplot2::scale_y_continuous(breaks = c(0,  round(testValue,3), 1)))
+  }
+  
+  # Define plot position
+  plotPosition <- ggplot2::position_dodge(0.2)
+  
+  # Compute data for plot
+  nObs <- length(data)
+  counts <- sum(data == level)
+  proportion <- counts/nObs
+  results <- stats::binom.test(x = counts, n = nObs, p = options$testValue, alternative = "notEqualToTestValue", 
+                               conf.level = options$descriptivesPlotsConfidenceInterval)
+  lowerCI <- results$conf.int[1]
+  upperCI <- results$conf.int[2]
+  
+  summaryStat <- data.frame(label = level, proportion = proportion, lowerCI = lowerCI, upperCI = upperCI)
+  dfTestValue <- data.frame(testValue = options$testValue)
+  
+  # Make plot
+  descriptivesPlot <- ggplot2::ggplot(summaryStat, ggplot2::aes(x = label, y = proportion, group = 1)) +
+    ggplot2::geom_errorbar(ggplot2::aes(ymin = lowerCI, ymax = upperCI), colour = "black", width = 0.2, 
+                           position = plotPosition) +
+    ggplot2::geom_point(position = plotPosition, size = 4) +
+    ggplot2::geom_hline(data = dfTestValue, ggplot2::aes(yintercept = options$testValue), linetype = "dashed") +
+    ggplot2::ylab(NULL) +
+    ggplot2::xlab(NULL) +
+    ggplot2::theme_bw() +
+    ggplot2::ylim(min = 0, max = 1) +
+    ggplot2::theme(panel.grid.minor = ggplot2::element_blank(),
+                   plot.title = ggplot2::element_text(size = 18),
+                   panel.grid.major = ggplot2::element_blank(),
+                   axis.title.x = ggplot2::element_blank(),
+                   axis.title.y = ggplot2::element_text(size = 18, vjust = -1),
+                   axis.text.x = ggplot2::element_text(size = 15),
+                   axis.text.y = ggplot2::element_text(size = 15),
+                   panel.background = ggplot2::element_rect(fill = "transparent", colour = NA),
+                   plot.background = ggplot2::element_rect(fill = "transparent", colour = NA),
+                   legend.background = ggplot2::element_rect(fill = "transparent", colour = NA),
+                   panel.border = ggplot2::element_blank(),
+                   axis.line = ggplot2::element_blank(),
+                   legend.key = ggplot2::element_blank(),
+                   legend.title = ggplot2::element_text(size = 12),
+                   legend.text = ggplot2::element_text(size = 12),
+                   axis.ticks = ggplot2::element_line(size = 0.5),
+                   axis.ticks.margin = grid::unit(1, "mm"),
+                   axis.ticks.length = grid::unit(3, "mm"),
+                   plot.margin = grid::unit(c(0.5, 0, 0.5, 0.5), "cm")) +
+    base_breaks_y(summaryStat, dfTestValue$testValue)
+  
+  # Return plot
+  return(descriptivesPlot)
+}
+
+.dpriorTheta <- function(x, a = 1, b = 1, hypothesis = "notEqualToTestValue", theta0 = .5) {
 	
-	if (hypothesis == "two.sided") {
+	if (hypothesis == "notEqualToTestValue") {
 		
 		dbeta(x, a, b)
 		
-	} else if (hypothesis == "greater") {
+	} else if (hypothesis == "greaterThanTestValue") {
 		
 		ifelse (x >= theta0,
 				dbeta(x, a, b) / pbeta(theta0, a, b, lower.tail = FALSE),
 				0)
 		
-	} else if (hypothesis == "less") {
+	} else if (hypothesis == "lessThanTestValue") {
 		
 		ifelse (x <= theta0,
 				dbeta(x, a, b) / pbeta(theta0, a, b),
@@ -317,47 +452,47 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	
 }
 
-.dposteriorTheta <- function(x, a = 1, b = 1, counts = 10, n = 20, hypothesis = "two.sided", theta0 = .5) {
+.dposteriorTheta <- function(x, a = 1, b = 1, counts = 10, total = 20, hypothesis = "notEqualToTestValue", theta0 = .5) {
 	
-	if (hypothesis == "two.sided") {
+	if (hypothesis == "notEqualToTestValue") {
 		
-		dbeta(x, a + counts, b + n - counts)
+		dbeta(x, a + counts, b + total - counts)
 		
-	} else if (hypothesis == "greater") {
+	} else if (hypothesis == "greaterThanTestValue") {
 		
 		ifelse (x >= theta0,
-				dbeta(x, a + counts, b + n - counts) / pbeta(theta0, a + counts, b + n - counts, lower.tail = FALSE),
+				dbeta(x, a + counts, b + total - counts) / pbeta(theta0, a + counts, b + total - counts, lower.tail = FALSE),
 				0)
 		
-	} else if (hypothesis == "less") {
+	} else if (hypothesis == "lessThanTestValue") {
 		
 		ifelse (x <= theta0,
-				dbeta(x, a + counts, b + n - counts) / pbeta(theta0, a + counts, b + n - counts),
+				dbeta(x, a + counts, b + total - counts) / pbeta(theta0, a + counts, b + total - counts),
 				0)
 	
 	}
 	
 }
 
-.credibleIntervalPlusMedian <- function(credibleIntervalInterval = .95, a = 1, b = 1, counts = 10, n = 20, hypothesis = "two.sided", theta0 = .5) {
+.credibleIntervalPlusMedian <- function(credibleIntervalInterval = .95, a = 1, b = 1, counts = 10, total = 20, hypothesis = "notEqualToTestValue", theta0 = .5) {
 	
 	lower <- (1 - credibleIntervalInterval) / 2
 	upper <- 1 - lower
 	
-	if (hypothesis == "two.sided") {
+	if (hypothesis == "notEqualToTestValue") {
 		
-		quantiles <- qbeta(c(lower, .5, upper), a + counts , b + n - counts)
+		quantiles <- qbeta(c(lower, .5, upper), a + counts , b + total - counts)
 		
-	} else if (hypothesis == "greater") {
+	} else if (hypothesis == "greaterThanTestValue") {
 		
-		rightArea <- pbeta(theta0, a + counts , b + n - counts, lower.tail = FALSE)
+		rightArea <- pbeta(theta0, a + counts , b + total - counts, lower.tail = FALSE)
 		leftArea <- 1 - rightArea
-		quantiles <- qbeta(leftArea + rightArea * c(lower, .5, upper), a + counts , b + n - counts)
+		quantiles <- qbeta(leftArea + rightArea * c(lower, .5, upper), a + counts , b + total - counts)
 		
-	} else if (hypothesis == "less") {
+	} else if (hypothesis == "lessThanTestValue") {
 		
-		leftArea <- pbeta(theta0, a + counts , b + n - counts)
-		quantiles <- qbeta(leftArea * c(lower, .5, upper), a + counts , b + n - counts)
+		leftArea <- pbeta(theta0, a + counts , b + total - counts)
+		quantiles <- qbeta(leftArea * c(lower, .5, upper), a + counts , b + total - counts)
 		
 	}
 	
@@ -365,7 +500,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	
 }
 
-.plotPosterior.binomTest <- function(counts, n, theta0, a = 1, b = 1, BF10, hypothesis = "two.sided",
+.plotPosterior.binomTest <- function(counts, total, theta0, a = 1, b = 1, BF10, hypothesis = "notEqualToTestValue",
 									 addInformation = TRUE, dontPlotData = FALSE,
 									 lwd = 2, cexPoints = 1.5, cexAxis = 1.2, cexYlab = 1.5,
 									 cexXlab = 1.5, cexTextBF = 1.4, cexCI = 1.1, cexLegend = 1.2,
@@ -407,15 +542,15 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	
 	xlim <- c(0, 1)
 	
-	if (hypothesis == "two.sided") {
+	if (hypothesis == "notEqualToTestValue") {
 	
 		stretch <- 1.35
 		
-	} else if (hypothesis == "greater") {
+	} else if (hypothesis == "greaterThanTestValue") {
 	
 		stretch <- 1.45
 		
-	} else if (hypothesis == "less") {
+	} else if (hypothesis == "lessThanTestValue") {
 	
 		stretch <- 1.45
 	}
@@ -428,7 +563,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	# compute 95% credible interval & median:
 	
 	quantiles <- try(.credibleIntervalPlusMedian(credibleIntervalInterval = credibleIntervalInterval,
-					 a = a, b = b, counts = counts, n = n, hypothesis, theta0 = theta0),
+					 a = a, b = b, counts = counts, total = total, hypothesis, theta0 = theta0),
 					 silent = TRUE)
 	
 	if (class(quantiles) == "try-error") {
@@ -452,7 +587,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	}
 	
 	priorLine <- .dpriorTheta(theta, a, b, hypothesis, theta0)
-	posteriorLine <- .dposteriorTheta(theta, a, b, counts, n, hypothesis, theta0)
+	posteriorLine <- .dposteriorTheta(theta, a, b, counts, total, hypothesis, theta0)
 	
 	dmax <- max(c(posteriorLine[is.finite(posteriorLine)], priorLine[is.finite(priorLine)]))
 	
@@ -512,7 +647,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	} else {
 	
 		heightPriorTheta0 <- .dpriorTheta(theta0, a, b, hypothesis, theta0)
-		heightPosteriorTheta0 <- .dposteriorTheta(theta0, a, b, counts, n, hypothesis, theta0)
+		heightPosteriorTheta0 <- .dposteriorTheta(theta0, a, b, counts, total, hypothesis, theta0)
 		
 		points(theta0, heightPriorTheta0, col = "black", pch = 21, bg = "grey", cex = cexPoints)
 		points(theta0, heightPosteriorTheta0, col = "black", pch = 21, bg = "grey", cex = cexPoints)
@@ -554,17 +689,17 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 			BF01t <- formatC(BF01,3, format = "f")
 		}
 		
-		if (hypothesis == "two.sided") {
+		if (hypothesis == "notEqualToTestValue") {
 			
 			text(xx, yy2, bquote(BF[10] == .(BF10t)), cex = cexTextBF, pos = 4)
 			text(xx, yy, bquote(BF[0][1] == .(BF01t)), cex = cexTextBF, pos = 4)
 		
-		} else if (hypothesis == "greater") {
+		} else if (hypothesis == "greaterThanTestValue") {
 			
 			text(xx, yy2, bquote(BF["+"][0] == .(BF10t)), cex = cexTextBF, pos = 4)
 			text(xx, yy, bquote(BF[0]["+"] == .(BF01t)), cex = cexTextBF, pos = 4)
 		
-		} else if (hypothesis == "less") {
+		} else if (hypothesis == "lessThanTestValue") {
 			
 			text(xx, yy2, bquote(BF["-"][0] == .(BF10t)), cex= cexTextBF, pos = 4)
 			text(xx, yy, bquote(BF[0]["-"] == .(BF01t)), cex= cexTextBF, pos = 4)
@@ -614,17 +749,17 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 		yy <- grconvertY(0.865 + offsetTopPart, "ndc", "user")
 		yy2 <- grconvertY(0.708 + offsetTopPart, "ndc", "user")
 		
-		if (hypothesis == "two.sided") {
+		if (hypothesis == "notEqualToTestValue") {
 			
 			text(xx, yy, "data|H1", cex = cexCI)
 			text(xx, yy2, "data|H0", cex = cexCI)
 			
-		} else if (hypothesis == "greater") {
+		} else if (hypothesis == "greaterThanTestValue") {
 			
 			text(xx, yy, "data|H+", cex = cexCI)
 			text(xx, yy2, "data|H0", cex = cexCI)
 			
-		} else if (hypothesis == "less") {
+		} else if (hypothesis == "lessThanTestValue") {
 			
 			text(xx, yy, "data|H-", cex = cexCI)
 			text(xx, yy2, "data|H0", cex = cexCI)
@@ -644,7 +779,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	
 }
 
-.plotSequentialBF.binomTest <- function(d, level, theta0 = .5, a = 1, b = 1, BF10table, hypothesis = "two.sided",
+.plotSequentialBF.binomTest <- function(d, level, theta0 = .5, a = 1, b = 1, BF10table, hypothesis = "notEqualToTestValue",
 										callback = function(...) 0, lwd = 2, cexPoints = 1.4, cexAxis = 1.2,
 										cexYlab = 1.5, cexXlab = 1.6, cexTextBF = 1.4, cexText = 1.2,
 										cexLegend = 1.2, cexEvidence = 1.6, lwdAxis = 1.2, plotDifferentPriors = FALSE,
@@ -674,7 +809,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 		
 		mtext("n", side = 1, cex = cexXlab, line= 2.5)
 		
-		if (hypothesis == "two.sided") {
+		if (hypothesis == "notEqualToTestValue") {
 			
 			if (BFH1H0) {
 				
@@ -686,7 +821,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 			}
 		}
 		
-		if (hypothesis == "greater") {
+		if (hypothesis == "greaterThanTestValue") {
 			
 			if (BFH1H0) {
 				
@@ -698,7 +833,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 			}
 		}
 		
-		if (hypothesis == "less") {
+		if (hypothesis == "lessThanTestValue") {
 			
 			if (BFH1H0) {
 				
@@ -728,8 +863,8 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	for (i in seq_along(x)) {
 		
 		counts <- sum(x[1:i] == 1)
-		n <- length(x[1:i])
-		BF10[i] <- .bayesBinomialTest(counts, n, theta0, hypothesis, a = a, b = b)
+		total <- length(x[1:i])
+		BF10[i] <- .bayesBinomialTest(counts, total, theta0, hypothesis, a = a, b = b)
 		
 		if (is.na(BF10[i]))
 			stop("One or more Bayes factors cannot be computed")
@@ -753,7 +888,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	yLab <- bfAxis$yLab
 	omit3s <- bfAxis$omit3s
 	
-	####################### plot ###########################
+# creating plots
 	
 	xLab <- pretty(c(0, length(BF10)+2))
 	xlim <- range(xLab)
@@ -841,7 +976,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	
 	if (omit3s) {
 		
-		if (hypothesis == "two.sided") {
+		if (hypothesis == "notEqualToTestValue") {
 			
 			if (BFH1H0) {
 				
@@ -853,7 +988,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 			}
 		}
 		
-		if (hypothesis == "greater") {
+		if (hypothesis == "greaterThanTestValue") {
 			
 			if (BFH1H0) {
 				
@@ -865,7 +1000,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 			}
 		}
 		
-		if (hypothesis == "less") {
+		if (hypothesis == "lessThanTestValue") {
 			
 			if (BFH1H0) {
 				
@@ -880,7 +1015,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	
 	if (omit3s == FALSE) {
 		
-		if (hypothesis == "two.sided") {
+		if (hypothesis == "notEqualToTestValue") {
 			
 			if (BFH1H0) {
 				
@@ -892,7 +1027,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 			}
 		}
 		
-		if (hypothesis == "greater") {
+		if (hypothesis == "greaterThanTestValue") {
 			
 			if (BFH1H0) {
 				
@@ -904,7 +1039,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 			}
 		}
 		
-		if (hypothesis == "less") {
+		if (hypothesis == "lessThanTestValue") {
 			
 			if (BFH1H0) {
 				
@@ -929,7 +1064,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	
 	xxt <- grconvertX(0.28, "npc", "user")
 	
-	if (hypothesis == "two.sided") {
+	if (hypothesis == "notEqualToTestValue") {
 		
 		if (BFH1H0) {
 			
@@ -941,7 +1076,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 		}
 	}
 	
-	if (hypothesis == "greater") {
+	if (hypothesis == "greaterThanTestValue") {
 		
 		if (BFH1H0) {
 			
@@ -953,7 +1088,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 		}
 	}
 	
-	if (hypothesis == "less") {
+	if (hypothesis == "lessThanTestValue") {
 		
 		if (BFH1H0) {
 			
@@ -973,7 +1108,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	
 	arrows(xx, yya1, xx, yya2, length = 0.1, code = 2, lwd = lwd)
 	
-	if (hypothesis == "two.sided") {
+	if (hypothesis == "notEqualToTestValue") {
 		
 		if (BFH1H0) {
 			
@@ -985,7 +1120,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 		}
 	}
 	
-	if (hypothesis == "greater"){
+	if (hypothesis == "greaterThanTestValue"){
 		
 		if (BFH1H0) {
 			
@@ -997,7 +1132,7 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 		}
 	}
 	
-	if (hypothesis == "less") {
+	if (hypothesis == "lessThanTestValue") {
 		
 		if (BFH1H0) {
 			
@@ -1033,19 +1168,19 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 		BF01t <- formatC(BF01e, 3, format = "f")
 	}
 	
-	if (hypothesis == "two.sided") {
+	if (hypothesis == "notEqualToTestValue") {
 		
 		text(xx, yy2, bquote(BF[10] == .(BF10t)), cex = cexTextBF, pos = 4, offset = -.2)
 		text(xx, yy, bquote(BF[0][1] == .(BF01t)), cex = cexTextBF, pos = 4, offset = -.2)
 	}
 	
-	if (hypothesis == "greater") {
+	if (hypothesis == "greaterThanTestValue") {
 		
 		text(xx, yy2, bquote(BF["+"][0] == .(BF10t)), cex = cexTextBF, pos = 4, offset = -.2)
 		text(xx, yy, bquote(BF[0]["+"] == .(BF01t)), cex = cexTextBF, pos = 4, offset = -.2)
 	}
 	
-	if (hypothesis == "less") {
+	if (hypothesis == "lessThanTestValue") {
 		
 		text(xx, yy2, bquote(BF["-"][0] == .(BF10t)), cex = cexTextBF, pos = 4, offset = -.2)
 		text(xx, yy, bquote(BF[0]["-"] == .(BF01t)), cex = cexTextBF, pos = 4, offset = -.2)
@@ -1088,19 +1223,19 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 	yy <- grconvertY(0.865 + offsetTopPart, "ndc", "user")
 	yy2 <- grconvertY(0.708 + offsetTopPart, "ndc", "user")
 	
-	if (hypothesis == "two.sided") {
+	if (hypothesis == "notEqualToTestValue") {
 		
 		text(xx, yy, "data|H1", cex = 1.1)
 		text(xx, yy2, "data|H0", cex =  1.1)
 	}
 	
-	if (hypothesis == "greater") {
+	if (hypothesis == "greaterThanTestValue") {
 		
 		text(xx, yy, "data|H+", cex =  1.1)
 		text(xx, yy2, "data|H0", cex =  1.1)
 	}
 	
-	if (hypothesis == "less") {
+	if (hypothesis == "lessThanTestValue") {
 		
 		text(xx, yy, "data|H-", cex =  1.1)
 		text(xx, yy2, "data|H0", cex =  1.1)
@@ -1114,6 +1249,8 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 		
 		lines(log(BF), col = "black", lwd = 2.7)
 	}
+	
+	# Determine the strength of the evidence that the Bayes Factor conveys (currently not implemented as an option)
 	
 	BFevidence <- BF10e
 	
@@ -1139,11 +1276,11 @@ BinomialTestBayesian <- function(jaspResults, dataset, options, state = NULL) {
 		
 		if (BF10e >= 1) {
 			
-			if (hypothesis == "two.sided") {
+			if (hypothesis == "notEqualToTestValue") {
 				text(xxT, yyT, paste("Evidence for H1:\n", lab), cex = 1.4, pos = 2, offset = -.2)
-			} else if (hypothesis == "greater") {
+			} else if (hypothesis == "greaterThanTestValue") {
 				text(xxT, yyT, paste("Evidence for H+:\n", lab), cex = 1.4, pos = 2, offset = -.2)
-			} else if (hypothesis == "less") {
+			} else if (hypothesis == "lessThanTestValue") {
 				text(xxT, yyT, paste("Evidence for H-:\n", lab), cex = 1.4, pos = 2, offset = -.2)
 			}
 		}
