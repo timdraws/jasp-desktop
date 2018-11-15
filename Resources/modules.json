@@ -123,5 +123,33 @@
 				"name": "Network"
 			}
 		]
-	}
+	},
+    {
+        "name": "Machine Learning",
+        "ribbon": [
+            {
+                "name": "Regression",
+                "analyses": [
+                    "k nearest neighbors",
+                    "Random forest",
+                    "Boosting"
+                ]
+            },
+            {
+                "name": "Classification",
+                "analyses": [
+                    "k nearest neighbors",
+                    "Random forest",
+                    "Boosting"
+                ]
+            },
+            {
+                "name": "Clustering",
+                "analyses": [
+                    "k nearest neighbors",
+                    "Random forest"
+                ]
+            }
+        ]
+    }
 ]

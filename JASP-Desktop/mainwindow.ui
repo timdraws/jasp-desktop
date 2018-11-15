@@ -191,6 +191,7 @@ QPushButton::menu-indicator {
           <widget class="RibbonSummaryStatistics" name="ribbonSummaryStatistics"/>
           <widget class="RibbonMetaAnalysis" name="ribbonMetaAnalysis"/>
           <widget class="RibbonNetworkAnalysis" name="ribbonNetworkAnalysis"/>
+          <widget class="RibbonMachineLearning" name="ribbonMachineLearning"/>
          </widget>
         </item>
         <item>
@@ -578,6 +579,12 @@ QPushButton::menu-indicator {
    <class>RibbonNetworkAnalysis</class>
    <extends>QWidget</extends>
    <header>ribbons/ribbonnetworkanalysis.h</header>
+   <container>1</container>
+  </customwidget>
+   <customwidget>
+   <class>RibbonMachineLearning</class>
+   <extends>QWidget</extends>
+   <header>ribbons/ribbonmachinelearning.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

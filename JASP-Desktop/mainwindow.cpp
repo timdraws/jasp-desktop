@@ -69,6 +69,15 @@
 #include "analysisforms/MetaAnalysis/classicalmetaanalysisform.h"
 
 
+#include "analysisforms/MachineLearning/machinelearningknearestneighborsform.h"
+#include "analysisforms/MachineLearning/machinelearningrandomforestform.h"
+#include "analysisforms/MachineLearning/machinelearningboostingform.h"
+#include "analysisforms/MachineLearning/machinelearningknearestneighborsform.h"
+#include "analysisforms/MachineLearning/machinelearningrandomforestform.h"
+#include "analysisforms/MachineLearning/machinelearningboostingform.h"
+#include "analysisforms/MachineLearning/machinelearningknearestneighborsform.h"
+#include "analysisforms/MachineLearning/machinelearningrandomforestform.h"
+
 ///// 1-analyses headers
 
 #include <QDebug>
@@ -864,6 +873,22 @@ AnalysisForm* MainWindow::loadForm(const string name)
 	else if (name == "BinomialTest")								form = new BinomialTestForm(contentArea);
 	else if (name == "SEMSimple")									form = new SEMSimpleForm(contentArea);
 	else if (name == "Anova")										form = new AnovaForm(contentArea);
+	else if (name == "MachineLearningknearestneighbors")
+		form = new MachineLearningknearestneighborsForm(contentArea);
+	else if (name == "MachineLearningRandomforest")
+		form = new MachineLearningRandomforestForm(contentArea);
+	else if (name == "MachineLearningBoosting")
+		form = new MachineLearningBoostingForm(contentArea);
+	else if (name == "MachineLearningknearestneighbors")
+		form = new MachineLearningknearestneighborsForm(contentArea);
+	else if (name == "MachineLearningRandomforest")
+		form = new MachineLearningRandomforestForm(contentArea);
+	else if (name == "MachineLearningBoosting")
+		form = new MachineLearningBoostingForm(contentArea);
+	else if (name == "MachineLearningknearestneighbors")
+		form = new MachineLearningknearestneighborsForm(contentArea);
+	else if (name == "MachineLearningRandomforest")
+		form = new MachineLearningRandomforestForm(contentArea);
 ///// 4-analysis if-else ladder
 	else
 		qDebug() << "MainWindow::loadForm(); form not found : " << name.c_str();
@@ -1364,6 +1389,7 @@ void MainWindow::updateMenuEnabledDisabledStatus()
 	ui->ribbonReinforcementLearning->setDataSetLoaded(loaded);
 	ui->ribbonMetaAnalysis->setDataSetLoaded(loaded);
 	ui->ribbonNetworkAnalysis->setDataSetLoaded(loaded);
+	ui->ribbonMachineLearning->setDataSetLoaded(loaded);
 ///// 5-ribbon updateMenuEnabledDisabledStatus
 }
 
