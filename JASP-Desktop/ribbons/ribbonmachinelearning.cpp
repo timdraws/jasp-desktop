@@ -31,24 +31,24 @@ RibbonMachineLearning::RibbonMachineLearning(QWidget *parent) :
 	addRibbonButton(ui->buttonRegression);
 
 	QMenu *menuRegression = new QMenu(this);
-	menuRegression->addAction(QString("k nearest neighbors"), this, SLOT(itemSelected()))->setObjectName("MachineLearningknearestneighbors");
-	menuRegression->addAction(QString("Random forest"), this, SLOT(itemSelected()))->setObjectName("MachineLearningRandomforest");
-	menuRegression->addAction(QString("Boosting"), this, SLOT(itemSelected()))->setObjectName("MachineLearningBoosting");
+    menuRegression->addAction(QString("k nearest neighbors"), this, SLOT(itemSelected()))->setObjectName("MLRegressionKNN");
+    menuRegression->addAction(QString("Random forest"), this, SLOT(itemSelected()))->setObjectName("MLRegressionRandomForest");
+    menuRegression->addAction(QString("Boosting"), this, SLOT(itemSelected()))->setObjectName("MLRegressionBoosting");
 	ui->buttonRegression->setMenu(menuRegression);
 
 	addRibbonButton(ui->buttonClassification);
 
 	QMenu *menuClassification = new QMenu(this);
-	menuClassification->addAction(QString("k nearest neighbors"), this, SLOT(itemSelected()))->setObjectName("MachineLearningknearestneighbors");
-	menuClassification->addAction(QString("Random forest"), this, SLOT(itemSelected()))->setObjectName("MachineLearningRandomforest");
-	menuClassification->addAction(QString("Boosting"), this, SLOT(itemSelected()))->setObjectName("MachineLearningBoosting");
+    menuClassification->addAction(QString("k nearest neighbors"), this, SLOT(itemSelected()))->setObjectName("MLClassificationKNN");
+    menuClassification->addAction(QString("Random forest"), this, SLOT(itemSelected()))->setObjectName("MLClassificationRandomForest");
+    menuClassification->addAction(QString("Boosting"), this, SLOT(itemSelected()))->setObjectName("MLClassificationBoosting");
 	ui->buttonClassification->setMenu(menuClassification);
 
 	addRibbonButton(ui->buttonClustering);
 
 	QMenu *menuClustering = new QMenu(this);
-	menuClustering->addAction(QString("k nearest neighbors"), this, SLOT(itemSelected()))->setObjectName("MachineLearningknearestneighbors");
-	menuClustering->addAction(QString("Random forest"), this, SLOT(itemSelected()))->setObjectName("MachineLearningRandomforest");
+    menuClustering->addAction(QString("k means"), this, SLOT(itemSelected()))->setObjectName("MLClusteringKMeans");
+    menuClustering->addAction(QString("Random forest"), this, SLOT(itemSelected()))->setObjectName("MLClusteringRandomForest");
 	ui->buttonClustering->setMenu(menuClustering);
 
 ///// Ribbon Buttons and Menu

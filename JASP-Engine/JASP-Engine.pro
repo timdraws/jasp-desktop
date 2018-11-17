@@ -163,7 +163,15 @@ OTHER_FILES  += \
 	JASP/R/ttestindependentsamples.R \
 	JASP/R/ttestonesample.R \
 	JASP/R/ttestpairedsamples.R \
-	JASP/R/networkanalysis.R
+        JASP/R/networkanalysis.R \
+        JASP/R/mlregressionrandomforest.R \
+        JASP/R/mlregressionknn.R \
+        JASP/R/mlregressionboosting.R \
+        JASP/R/mlclassificationrandomforest.R \
+        JASP/R/mlclassificationknn.R \
+        JASP/R/mlclassificationboosting.R \
+        JASP/R/mlclusteringrandomforest.R \
+        JASP/R/mlclusteringkmeans.R
 
 DISTFILES += \
     JASP/DESCRIPTION \

@@ -78,6 +78,15 @@
 #include "analysisforms/MachineLearning/machinelearningknearestneighborsform.h"
 #include "analysisforms/MachineLearning/machinelearningrandomforestform.h"
 
+#include "analysisforms/MachineLearning/mlregressionrandomforestform.h"
+#include "analysisforms/MachineLearning/mlregressionknnform.h"
+#include "analysisforms/MachineLearning/mlregressionboostingform.h"
+#include "analysisforms/MachineLearning/mlclassificationrandomforestform.h"
+#include "analysisforms/MachineLearning/mlclassificationknnform.h"
+#include "analysisforms/MachineLearning/mlclassificationboostingform.h"
+#include "analysisforms/MachineLearning/mlclusteringrandomforestform.h"
+#include "analysisforms/MachineLearning/mlclusteringkmeansform.h"
+
 ///// 1-analyses headers
 
 #include <QDebug>
@@ -263,6 +272,8 @@ void MainWindow::makeConnections()
 	connectRibbonButton(ui->ribbonSummaryStatistics);
 	connectRibbonButton(ui->ribbonMetaAnalysis);
 	connectRibbonButton(ui->ribbonNetworkAnalysis);
+    connectRibbonButton(ui->ribbonMachineLearning);
+
 }
 
 void MainWindow::initQWidgetGUIParts()
@@ -827,6 +838,7 @@ void MainWindow::updateShownVariablesModel()
 AnalysisForm* MainWindow::loadForm(const string name)
 {
 	AnalysisForm *form = NULL;
+std::cout << name << std::endl;
 
 	QWidget *contentArea = ui->optionsContentArea;
 
@@ -873,22 +885,22 @@ AnalysisForm* MainWindow::loadForm(const string name)
 	else if (name == "BinomialTest")								form = new BinomialTestForm(contentArea);
 	else if (name == "SEMSimple")									form = new SEMSimpleForm(contentArea);
 	else if (name == "Anova")										form = new AnovaForm(contentArea);
-	else if (name == "MachineLearningknearestneighbors")
-		form = new MachineLearningknearestneighborsForm(contentArea);
-	else if (name == "MachineLearningRandomforest")
-		form = new MachineLearningRandomforestForm(contentArea);
-	else if (name == "MachineLearningBoosting")
-		form = new MachineLearningBoostingForm(contentArea);
-	else if (name == "MachineLearningknearestneighbors")
-		form = new MachineLearningknearestneighborsForm(contentArea);
-	else if (name == "MachineLearningRandomforest")
-		form = new MachineLearningRandomforestForm(contentArea);
-	else if (name == "MachineLearningBoosting")
-		form = new MachineLearningBoostingForm(contentArea);
-	else if (name == "MachineLearningknearestneighbors")
-		form = new MachineLearningknearestneighborsForm(contentArea);
-	else if (name == "MachineLearningRandomforest")
-		form = new MachineLearningRandomforestForm(contentArea);
+    else if (name == "MachineLearningknearestneighbors")            form = new MachineLearningknearestneighborsForm(contentArea);
+    else if (name == "MachineLearningRandomforest")                 form = new MachineLearningRandomforestForm(contentArea);
+    else if (name == "MachineLearningBoosting")                     form = new MachineLearningBoostingForm(contentArea);
+    else if (name == "MachineLearningknearestneighbors")            form = new MachineLearningknearestneighborsForm(contentArea);
+    else if (name == "MachineLearningRandomforest")                 form = new MachineLearningRandomforestForm(contentArea);
+    else if (name == "MachineLearningBoosting")                     form = new MachineLearningBoostingForm(contentArea);
+    else if (name == "MachineLearningknearestneighbors")            form = new MachineLearningknearestneighborsForm(contentArea);
+    else if (name == "MachineLearningRandomforest")                 form = new MachineLearningRandomforestForm(contentArea);
+    else if (name == "MLRegressionRandomForest")                    form = new MLRegressionRandomForestForm(contentArea);
+    else if (name == "MLRegressionKNN")                             form = new MLRegressionKNNForm(contentArea);
+    else if (name == "MLRegressionBoosting")                        form = new MLRegressionBoostingForm(contentArea);
+    else if (name == "MLClassificationRandomForest")                form = new MLClassificationRandomForestForm(contentArea);
+    else if (name == "MLClassificationKNN")                         form = new MLClassificationKNNForm(contentArea);
+    else if (name == "MLClassificationBoosting")                    form = new MLClassificationBoostingForm(contentArea);
+    else if (name == "MLClusteringKMeans")                          form = new MLClusteringKMeansForm(contentArea);
+    else if (name == "MLClusteringRandomForest")                    form = new MLClusteringRandomForestForm(contentArea);
 ///// 4-analysis if-else ladder
 	else
 		qDebug() << "MainWindow::loadForm(); form not found : " << name.c_str();
