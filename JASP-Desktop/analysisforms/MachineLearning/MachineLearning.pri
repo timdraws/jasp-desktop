@@ -9,7 +9,7 @@ FORMS += \
     $$PWD/mlclassificationrandomforestform.ui \
     $$PWD/mlclassificationknnform.ui \
     $$PWD/mlclassificationboostingform.ui \
-    $$PWD/mlmlclusteringkmeansform.ui \
+    $$PWD/mlclusteringkmeansform.ui \
     $$PWD/mlclusteringrandomforestform.ui
 
 SOURCES += \
@@ -23,7 +23,7 @@ SOURCES += \
     $$PWD/mlclassificationrandomforestform.cpp \
     $$PWD/mlclassificationknnform.cpp \
     $$PWD/mlclassificationboostingform.cpp \
-    $$PWD/mlmlclusteringkmeansform.cpp \
+    $$PWD/mlclusteringkmeansform.cpp \
     $$PWD/mlclusteringrandomforestform.cpp
 
 HEADERS += \
@@ -37,6 +37,6 @@ HEADERS += \
     $$PWD/mlclassificationrandomforestform.h \
     $$PWD/mlclassificationknnform.h \
     $$PWD/mlclassificationboostingform.h \
-    $$PWD/mlmlclusteringkmeansform.h \
+    $$PWD/mlclusteringkmeansform.h \
     $$PWD/mlclusteringrandomforestform.h
 
