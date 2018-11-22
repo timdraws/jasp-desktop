@@ -17,7 +17,7 @@
 
 # Main function ----
 MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
-  
+
   # Set title
   jaspResults$title <- "Random Forest Regression"
   
@@ -31,13 +31,11 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   errors <- .mlRegRandomForestErrorHandling(dataset, options)
   
   # Compute (a list of) results from which tables and plots can be created
-  mlRegRandomForestResults <- .mlRegRandomForestComputeResults(jaspResults, dataset, options)
+  mlRegRandomForestResults <- .mlRegRandomForestComputeResults(jaspResults, dataset, options, errors)
   
   # Output containers, tables, and plots based on the results. These functions should not return anything!
   .mlRegRandomForestContainerMain( jaspResults, options, mlRegRandomForestResults)
-  .mlRegRandomForestTableSomething(jaspResults, options, mlRegRandomForestResults)
-  .mlRegRandomForestTableSthElse(  jaspResults, options, mlRegRandomForestResults)
-  .mlRegRandomForestPlotSomething( jaspResults, options, mlRegRandomForestResults)
+  .mlRegRandomForestTableSummary(jaspResults, options, mlRegRandomForestResults)
   
   return()
 }
@@ -47,6 +45,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   # Determine if analysis can be run with user input
   # Calculate any options common to multiple parts of the analysis
   # options: e.g., nr of predictors should not be larger than nr of predictors given, percentage should betw. 0 and 1
+  options
 }
 
 # Preprocessing functions ----
@@ -56,7 +55,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   if (!is.null(dataset)) {
     return(dataset)
   } else {
-    return(.readDataSetToEnd(columns.as.numeric = options$target, columns.as.numeric = options$predictors))
+    return(.readDataSetToEnd(columns.as.numeric = options$target, columns = options$predictors))
   }
 }
 
@@ -66,7 +65,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   if (length(options$target) == 0 || length(options$predictors) == 0) return("No variables")
 
   # Error Check 1: 0 observations for the target variable
-  .hasErrors(
+  errors <- .hasErrors(
     dataset = dataset, 
     perform = "run", 
     type = c('observations', 'variance', 'infinity'),
@@ -74,11 +73,12 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
     observations.amount = '< 1',
     exitAnalysisIfErrors = TRUE)
 
+  errors
 }
 
 # Results functions ----
-.mlRegRandomForestComputeResults <- function(jaspResults, dataset, options) {
-  
+.mlRegRandomForestComputeResults <- function(jaspResults, dataset, options, errors) {
+
   if (!is.null(errors) && errors == "No variables") return()
   
   if (is.null(jaspResults[["stateMlRegRandomForestResults"]])) {
@@ -96,9 +96,6 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
 .mlRegRandomForestResultsHelper <- function(dataset, options) {
   
   results <- list() # return object
-  
-  preds <- dataset[[.v(options$predictors)]] # predictors
-  target <- dataset[[.v(options$target)]] # targets
   
   # Defaults for everything set to "auto"
   if (options$noOfTrees == "auto") {
@@ -144,6 +141,9 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
     set.seed(1) # this was set to set.seed(Sys.time()) before, but then results are not reproducible(?)
   }		
   
+  preds <- which(colnames(dataset) == .v(options$predictors)) # predictors
+  target <- which(colnames(dataset) == .v(options$target)) # target
+  
   # Splitting the data into a training and a test set
   n <- nrow(dataset)
 
@@ -172,8 +172,11 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   )
   
   # Compile results object
-  results <- list(res = res, data = list(xTrain = xTrain, yTrain = yTrain, xTest = xTest, yTest = yTest))
-  
+  results <- list(res = res, 
+                  mse = res$mse,
+                  data = list(predsTrain = predsTrain, targetTrain = targetTrain, 
+                              predsTest = predsTest, targetTest = targetTest))
+
   return(results)
 }
 
@@ -187,9 +190,9 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   jaspResults[["mlRegRandomForestMainContainer"]] <- mainContainer
 }
 
-.mlRegRandomForestTableSomething <- function(jaspResults, options, mlRegRandomForestResults) {
+.mlRegRandomForestTableSummary <- function(jaspResults, options, mlRegRandomForestResults) {
   if (!is.null(jaspResults[["mlRegRandomForestMainContainer"]][["mlRegRandomForestTable"]])) return()
-  
+
   # Below is one way of creating a table
   mlRegRandomForestTable <- createJaspTable(title = "Random Forest Model")
   
@@ -197,8 +200,8 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   jaspResults[["mlRegRandomForestMainContainer"]][["mlRegRandomForestTable"]] <- mlRegRandomForestTable
   
   # Add column info
-  mlRegRandomForestTable$addColumnInfo(name = "modelacc",  title = "Model Accuracy", type = "number", format = "sf:4")
+  mlRegRandomForestTable$addColumnInfo(name = "MSE",  title = "MSE", type = "number", format = "sf:4")
   
   # Add data per column
-  mlRegRandomForestTable[["modelacc"]]  <- mlRegRandomForestResults$column1
+  mlRegRandomForestTable[["MSE"]]  <- mlRegRandomForestResults$mse
 }
