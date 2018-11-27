@@ -49,13 +49,12 @@
 		{
 			"name": "tableVariableImportance",
 			"type": "Boolean",
-                         "default" : true
+      "default" : false
 		},
 		{
 			"name": "tableSummary",
 			"type": "Boolean",
-                         "default" : true
-
+      "default" : true
 		},
 		{
 			"name": "calculateProximityMatrix",
@@ -71,7 +70,7 @@
 			"name": "numberOfTrees",
 			"type": "Integer",
 			"min": 1,
-			"default": 1   
+			"default": 500   
 		},
 		{
 			"name": "noOfPredictors", 
@@ -83,7 +82,7 @@
 			"name": "numberOfPredictors",
 			"type": "Integer",
 			"min": 1,
-                        "default": 1
+      "default": 1
 		},
 		{
 			"name": "minimumTerminalNodeSize",
@@ -106,9 +105,9 @@
 		{
 			"name": "percentageDataBootstrap",
 			"type": "Number",
-                        "min": 0,
-                        "max": 1,
-                        "value": 1.0
+      "min": 0,
+      "max": 1,
+      "value": 1.0
 		},		
 		{
 			"name": "dataTrainingModel",
@@ -119,9 +118,9 @@
 		{
 			"name": "percentageDataTraining",
 			"type": "Number",
-                        "min": 0,
-                        "max": 1,
-                        "value": 1.0
+      "min": 0,
+      "max": 1,
+      "value": 0.8
 		},			
 		{
 			"name": "maximumTerminalNodeSize",
