@@ -226,7 +226,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   # Add column info
   regranforTableVI$addColumnInfo(name = "predictor",  title = " ", type = "string")
   regranforTableVI$addColumnInfo(name = "MDiA",  title = "Mean decrease in accuracy", type = "number", format = "sf:4")
-  regranforTableVI$addColumnInfo(name = "MDiNI",  title = "Mean decrease in node impurity", type = "number", 
+  regranforTableVI$addColumnInfo(name = "MDiNI",  title = "Total decrease in node impurity", type = "number", 
                                  format = "sf:4")
 
   # Ordering the variables according to their mean decrease in accuracy
@@ -260,21 +260,67 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   varImportancePlot <- .regranforPlotVarImportanceHelper(options$plotVariableImportanceShowValues, regranforResults)
   #obj <- ggplot2::qplot(varImportancePlot[, 1], varImportancePlot[, 2])
   pct[['varImportancePlot']] <- createJaspPlot(plot = varImportancePlot, title = "Variable Importance Plot", 
-                                               width = 160, height = 320)
+                                               width = 400, height = 300)
 }
 
 .regranforPlotVarImportanceHelper <- function(options, regranforResults) {
 
-  varImportanceOrder <- sort(regranforResults$res$importance[,1], decr=T, index.return=T)$ix
+  varImportanceOrder <- sort(regranforResults$res$importance[,1], decr = T, index.return = T)$ix
   
   varImportance <- dplyr::tibble(
-    Variable = names(regranforResults$res$importance[varImportanceOrder, 1]),
+    Variable = .unv(names(regranforResults$res$importance[varImportanceOrder, 1])),
     IncMeanAcc = regranforResults$res$importance[varImportanceOrder, 1],
     IncNodePurity = regranforResults$res$importance[varImportanceOrder, 2]
   )
   
-  varImportancePlot <- ggplot2::ggplot(data = varImportance, mapping = ggplot2::aes(y = Variable, x = IncMeanAcc)) +
-    ggplot2::geom_point()
+  plotPosition <- ggplot2::position_dodge(0.2)
   
-  return(varImportancePlot)
+  varImpPlot1 <-
+    ggplot2::ggplot(varImportance, ggplot2::aes(x = reorder(Variable, -IncMeanAcc), y = IncMeanAcc)) +
+    geom_bar(stat = "identity", position = plotPosition, size = 4) +
+    ggplot2::ylab("Mean Decrease in Accuracy") +
+    ggplot2::geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2::xlab(NULL) +
+    ggplot2::coord_flip() +
+    ggplot2::theme_bw() +
+    ggplot2::theme(
+      panel.grid.minor  = ggplot2::element_blank(),
+      plot.title        = ggplot2::element_text(size = 18),
+      panel.grid.major  = ggplot2::element_blank(),
+      axis.title.x      = ggplot2::element_text(size = 18, color = "black"),
+      axis.text.x       = ggplot2::element_text(size = 15, color = "black"),
+      axis.text.y       = ggplot2::element_text(size = 15, color = "black"),
+      panel.background  = ggplot2::element_rect(fill = "transparent", colour = NA),
+      plot.background   = ggplot2::element_rect(fill = "transparent", colour = NA),
+      axis.ticks        = ggplot2::element_line(size = 0.5),
+      axis.ticks.margin = grid::unit(1, "mm"),
+      axis.ticks.length = grid::unit(3, "mm"),
+      plot.margin       = grid::unit(c(0.5, 0, 0.5, 0.5), "cm")
+    )
+  
+  varImpPlot2 <-
+    ggplot2::ggplot(varImportance, ggplot2::aes(x = reorder(Variable, -IncMeanAcc), y = IncNodePurity)) +
+    geom_bar(stat = "identity", position = plotPosition, size = 4) +
+    ggplot2::ylab("Total Decrease in Node Impurity") +
+    ggplot2::xlab(NULL) +
+    ggplot2::coord_flip() +
+    ggplot2::theme_bw() +
+    ggplot2::theme(
+      panel.grid.minor  = ggplot2::element_blank(),
+      plot.title        = ggplot2::element_text(size = 18),
+      panel.grid.major  = ggplot2::element_blank(),
+      axis.title.x      = ggplot2::element_text(size = 18, color = "black"),
+      axis.text.x       = ggplot2::element_text(size = 15, color = "black"),
+      axis.text.y       = ggplot2::element_text(size = 15, color = "black"),
+      panel.background  = ggplot2::element_rect(fill = "transparent", colour = NA),
+      plot.background   = ggplot2::element_rect(fill = "transparent", colour = NA),
+      axis.ticks        = ggplot2::element_line(size = 0.5),
+      axis.ticks.margin = grid::unit(1, "mm"),
+      axis.ticks.length = grid::unit(3, "mm"),
+      plot.margin       = grid::unit(c(0.5, 0, 0.5, 0.5), "cm")
+    )
+  
+  varImpPlot <- grid.arrange(varImpPlot1, varImpPlot2, ncol = 2)
+  
+  return(varImpPlot)
 }
