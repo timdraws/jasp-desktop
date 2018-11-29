@@ -1,8 +1,5 @@
 FORMS += \
     $$PWD/../../ribbons/ribbonmachinelearning.ui \
-    $$PWD/machinelearningknearestneighborsform.ui \
-    $$PWD/machinelearningrandomforestform.ui \
-    $$PWD/machinelearningboostingform.ui \
     $$PWD/mlregressionrandomforestform.ui \
     $$PWD/mlregressionknnform.ui \
     $$PWD/mlregressionboostingform.ui \
@@ -14,9 +11,6 @@ FORMS += \
 
 SOURCES += \
     $$PWD/../../ribbons/ribbonmachinelearning.cpp \
-    $$PWD/machinelearningknearestneighborsform.cpp \
-    $$PWD/machinelearningrandomforestform.cpp \
-    $$PWD/machinelearningboostingform.cpp \
     $$PWD/mlregressionrandomforestform.cpp \
     $$PWD/mlregressionknnform.cpp \
     $$PWD/mlregressionboostingform.cpp \
@@ -28,9 +22,6 @@ SOURCES += \
 
 HEADERS += \
     $$PWD/../../ribbons/ribbonmachinelearning.h \
-    $$PWD/machinelearningknearestneighborsform.h \
-    $$PWD/machinelearningrandomforestform.h \
-    $$PWD/machinelearningboostingform.h \
     $$PWD/mlregressionrandomforestform.h \
     $$PWD/mlregressionknnform.h \
     $$PWD/mlregressionboostingform.h \

@@ -61,7 +61,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
 
 # Check for errors
 .regranforErrorHandling <- function(dataset, options) {
-  
+
   # Check if results can be computed
   if (length(options$target) == 0 || length(options$predictors) == 0) return("No variables")
 
@@ -83,7 +83,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   if (!is.null(errors) && errors == "No variables") return()
   
   if (is.null(jaspResults[["stateregranforResults"]])) {
-    regranforResults <- .regranforResultsHelper(dataset, options)
+    regranforResults <- .regranforResultsHelper(jaspResults, dataset, options)
     
     jaspResults[["stateregranforResults"]] <- createJaspState(regranforResults)
     jaspResults[["stateregranforResults"]]$dependOnOptions("predictors")
@@ -94,61 +94,26 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   regranforResults
 }
 
-.regranforResultsHelper <- function(dataset, options) {
+.regranforResultsHelper <- function(jaspResults, dataset, options) {
 
-  results <- list() # return object
+  # This will be the object that we fill with results
+  results <- list()
   
-  # Defining the options
-  if (options$noOfTrees == "auto") {
-    options$noOfTrees <- 500
-  } else if (options$noOfTrees == "manual") {
-    options$noOfTrees <- as.integer(options$numberOfTrees)
-  }
-  
-  if (options$noOfPredictors == "auto") {
-    options$noOfPredictors <- max(c(floor(sqrt(length(.v(options$predictors)))), 1))
-  } else if (options$noOfPredictors == "manual") {
-    options$noOfPredictors <- as.integer(options$numberOfPredictors)
-  }
-  
-  if (options$dataBootstrapModel == "auto") { # does this give an error if set to a number higher than 1 or below 0?
-    options$dataBootstrapModel <- 1
-  } else if (options$dataBootstrapModel == "manual") {
-    options$dataBootstrapModel <- options$percentageDataBootstrap
-  }
-  
-  if (options$dataTrainingModel == "auto") { # aanpassen! check CI whether [0, 1] or [0, 100]
-    options$dataTrainingModel <- .8
-  } else if (options$dataTrainingModel == "manual") {
-    options$dataTrainingModel <- options$percentageDataTraining
-  }		
-  
-  if (options$maximumTerminalNodeSize == "auto") {
-    options$maximumTerminalNodeSize <- NULL
-  } else if (options$maximumTerminalNodeSize == "manual") {
-    options$maximumTerminalNodeSize <- as.integer(options$modelMaximumTerminalNode)
-  }
-  
-  if (options$minimumTerminalNodeSize == "auto") {
-    options$minimumTerminalNodeSize <- 5
-  } else if (options$minimumTerminalNodeSize == "manual") {
-    options$minimumTerminalNodeSize <- as.integer(options$modelMinimumTerminalNode)
-  }
+  # First, we perform precalculation of variables we use throughout the analysis
+  results[["spec"]] <- .regranforCalcSpecs(dataset, options)
+  results[["res"]] <- list()
   
   # Set seed	
-  if (options$seedBox == "manual") {
-    set.seed(options$seed)
-  } else {
-    set.seed(1) # this was set to set.seed(Sys.time()) before, but then results are not reproducible(?)
-  }		
+  if (options$seedBox == "manual") set.seed(options$seed) else set.seed(Sys.time())
 
+  # Prepare data
   preds <- which(colnames(dataset) %in% .v(options$predictors)) # predictors
   target <- which(colnames(dataset) %in% .v(options$target)) # target
   
   # Splitting the data into a training and a test set
   n <- nrow(dataset)
 
-  idxTrain <- sample(1:n, floor(options$dataTrainingModel*n))
+  idxTrain <- sample(1:n, floor(results$spec$dataTrainingModel*n))
   idxTest <- (1:n)[-idxTrain]
   
   predsTrain <- dataset[idxTrain, preds, drop = FALSE]
@@ -157,26 +122,80 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   targetTest <- dataset[idxTest, target]
   
   # Run Random Forest
-  res <- randomForest::randomForest(
+  results[["res"]] <- randomForest::randomForest(
     x = predsTrain,
     y = targetTrain,
     xtest = predsTest,
     ytest = targetTest,
-    ntree = options$noOfTrees,
-    mtry = options$noOfPredictors,
-    nodesize = options$minimumTerminalNodeSize,
-    maxnodes = options$maximumTerminalNodeSize,
+    ntree = results$spec$noOfTrees,
+    mtry = results$spec$noOfPredictors,
+    sampsize = results$spec$dataBootstrapModel,
+    nodesize = results$spec$minimumTerminalNodeSize,
+    maxnodes = results$spec$maximumTerminalNodeSize,
     importance = TRUE,
-    proximity = options$calculateProximityMatrix,
+    # proximity = options$calculateProximityMatrix, # let's leave that out for now
     keep.forest = TRUE,
     na.action = randomForest::na.roughfix
   )
   
-  # Compile results object
-  results <- list(res = res, data = list(predsTrain = predsTrain, targetTrain = targetTrain, predsTest = predsTest, 
-                                         targetTest = targetTest))
+  # Save results to state
+  jaspResults[["stateregranforResults"]] <- createJaspState(results)
+  jaspResults[["stateregranforResults"]]$dependOnOptions(
+    c("target", "predictors", "indicator", "plotVariableImportance", "plotTreesVsModelError", 
+      "plotVariableImportanceShowValues", "plotPredictivePerformance", "noOfTrees", "noOfPredictors", 
+      "dataTrainingModel", "dataBootstrapModel", "maximumTerminalNodeSize", "minimumTerminalNodeSize", "seedBox")
+  )
 
   return(results)
+}
+
+.regranforCalcSpecs <- function(dataset, options) {
+  specs <- list()
+
+  # Setting the number of trees used
+  if (options$noOfTrees == "manual") {
+    specs$noOfTrees <- as.integer(options$numberOfTrees)
+  } else {
+    specs$noOfTrees <- 500
+  }
+  
+  # Setting the number of variables considered at each split
+  if (options$noOfPredictors == "manual") {
+    specs$noOfPredictors <- as.integer(options$numberOfPredictors)
+  } else {
+    specs$noOfPredictors <- if (!is.null(options$target) && !is.factor(options$target)) 
+      max(floor(length(.v(options$predictors))/3), 1) else floor(sqrt(length(.v(options$predictors))))
+  }
+  
+  # Specifying what percentage of the data should be used for training
+  if (options$dataTrainingModel == "manual") {
+    specs$dataTrainingModel <- options$percentageDataTraining
+  } else {
+    specs$dataTrainingModel <- .8
+  }		
+
+  # Specifying what percentage of the data should be used for training
+  if (options$dataBootstrapModel == "manual") {
+    specs$dataBootstrapModel <- options$percentageDataBootstrap
+    } else {
+      specs$dataBootstrapModel <- ceiling(.632*nrow(dataset)*specs$dataTrainingModel)
+  }
+
+  # Setting the maximum number of terminal nodes
+  if (options$maximumTerminalNodeSize == "manual") {
+    specs$maximumTerminalNodeSize <- as.integer(options$modelMaximumTerminalNode)
+  } else {
+    specs$maximumTerminalNodeSize <- NULL
+  }
+  
+  # Setting the minimum size of terminal nodes
+  if (options$minimumTerminalNodeSize == "manual") {
+    specs$minimumTerminalNodeSize <- as.integer(options$modelMinimumTerminalNode)
+  } else {
+    specs$minimumTerminalNodeSize <- if (!is.null(options$target) && !is.factor(options$target)) 5 else 1
+  }
+  
+  return(specs)
 }
 
 # Output functions
@@ -184,7 +203,8 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   if (!is.null(jaspResults[["regranforMainContainer"]])) return()
   
   mainContainer <- createJaspContainer("Random Forest Model")
-  mainContainer$dependOnOptions(c("noOfTrees", "noOfPredictors"))
+  mainContainer$dependOnOptions(c("noOfTrees", "noOfPredictors", "numberOfPredictors"))
+  mainContainer$setOptionMustContainDependency("noOfPredictors", options$noOfPredictors)
   
   jaspResults[["regranforMainContainer"]] <- mainContainer
 }
@@ -207,8 +227,8 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   regranforTableSumm$addColumnInfo(name = "mtry",  title = "Variables tried", type = "integer")
   
   # Add data per column
-  regranforTableSumm[["testMSE"]]  <- mean((regranforResults$res$test$predicted - 
-                                                      regranforResults$data$targetTest)^2)
+  #if (regranforResults$spec$ready)
+  regranforTableSumm[["testMSE"]]  <- mean((regranforResults$res$test$predicted - regranforResults$data$targetTest)^2)
   regranforTableSumm[["ntrees"]]  <- regranforResults$res$ntree
   regranforTableSumm[["mtry"]]  <- regranforResults$res$mtry
 }
@@ -217,10 +237,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   
   if (!options$tableVariableImportance) return()
   
-  # Below is one way of creating a table
   regranforTableVI <- createJaspTable(title = "Variable Importance")
-  
-  # Bind table to jaspResults
   jaspResults[["regranforMainContainer"]][["regranforTableVI"]] <- regranforTableVI
   
   # Add column info
@@ -251,14 +268,12 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
 }
 
 .regranforPlotVarImportance <- function(jaspResults, options, regranforResults, errors) {
-  if (options$plotVariableImportance == FALSE) return()
+  if (!options$plotVariableImportance) return()
   if (!is.null(errors) && errors == "No variables") return()
   
-  # Create pointer towards main container
-  pct <- jaspResults[["containerPlots"]]
+  pct <- jaspResults[["containerPlots"]] # create pointer towards main container
   
   varImportancePlot <- .regranforPlotVarImportanceHelper(options$plotVariableImportanceShowValues, regranforResults)
-  #obj <- ggplot2::qplot(varImportancePlot[, 1], varImportancePlot[, 2])
   pct[['varImportancePlot']] <- createJaspPlot(plot = varImportancePlot, title = "Variable Importance Plot", 
                                                width = 400, height = 300)
 }
@@ -275,13 +290,13 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   
   plotPosition <- ggplot2::position_dodge(0.2)
   
-  varImpPlot1 <-
+  varImpPlot1 <- JASPgraphs::themeJasp(
     ggplot2::ggplot(varImportance, ggplot2::aes(x = reorder(Variable, -IncMeanAcc), y = IncMeanAcc)) +
-    geom_bar(stat = "identity", position = plotPosition, size = 4) +
+    ggplot2::geom_bar(stat = "identity", position = plotPosition, size = 4) +
     ggplot2::ylab("Mean Decrease in Accuracy") +
     ggplot2::geom_hline(yintercept = 0, linetype = "dashed") +
-    ggplot2::xlab(NULL) +
-    ggplot2::coord_flip() +
+    ggplot2::xlab(NULL)) +
+    ggplot2::coord_flip()# +
     ggplot2::theme_bw() +
     ggplot2::theme(
       panel.grid.minor  = ggplot2::element_blank(),
@@ -300,7 +315,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   
   varImpPlot2 <-
     ggplot2::ggplot(varImportance, ggplot2::aes(x = reorder(Variable, -IncMeanAcc), y = IncNodePurity)) +
-    geom_bar(stat = "identity", position = plotPosition, size = 4) +
+    ggplot2::geom_bar(stat = "identity", position = plotPosition, size = 4) +
     ggplot2::ylab("Total Decrease in Node Impurity") +
     ggplot2::xlab(NULL) +
     ggplot2::coord_flip() +
@@ -320,7 +335,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
       plot.margin       = grid::unit(c(0.5, 0, 0.5, 0.5), "cm")
     )
   
-  varImpPlot <- grid.arrange(varImpPlot1, varImpPlot2, ncol = 2)
+  varImpPlot <- gridExtra::grid.arrange(varImpPlot1, varImpPlot2, ncol = 2)
   
   return(varImpPlot)
 }

@@ -67,6 +67,10 @@ MLRegressionRandomForestForm::MLRegressionRandomForestForm(QWidget *parent) :
 	connect(_indicatorListModel, SIGNAL(assignedTo(Terms)), _anovaModel, SLOT(addCovariates(Terms)));
 	connect(_indicatorListModel, SIGNAL(unassigned(Terms)), _anovaModel, SLOT(removeVariables(Terms)));
 
+//#ifndef JASP_DEBUG
+    ui->widget_11->hide();
+//#endif
+
 	ui->advancedOptions->hide();
 
 	defaultOptions();
