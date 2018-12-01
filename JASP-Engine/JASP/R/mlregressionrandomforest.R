@@ -19,54 +19,35 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
 
   # Set title
   jaspResults$title <- "Random Forest Regression"
-  
-  # Init options: add variables to options to be used in the remainder of the analysis
-  options <- .regranforInitOptions(jaspResults, options)
-  
-  # Sead dataset
-  dataset <- .regranforReadData(dataset, options)
+
+  # Read dataset
+  if(options$target == "") options$target <- NULL
+  dataset <- .readDataSetToEnd(columns.as.numeric = options$target, columns = options$predictors)
+
+  # Check if results can be computed
+  ready <- (!is.null(options$target) && length(options$predictors) > 0)
   
   # Error checking
-  errors <- .regranforErrorHandling(dataset, options)
+  if(ready) errors <- .regranforErrorHandling(dataset, options)
   
   # Compute (a list of) results from which tables and plots can be created
-  regranforResults <- .regranforComputeResults(jaspResults, dataset, options, errors)
-  
+  if(ready) regranforResults <- .regranforComputeResults(jaspResults, dataset, options)
+
   # Output containers, tables, and plots based on the results. These functions should not return anything!
   .regranforContainerMain(     jaspResults, options, regranforResults)
-  .regranforTableSummary(      jaspResults, options, regranforResults)
-  .regranforTableVarImportance(jaspResults, options, regranforResults)
-  .regranforContainerPlots(    jaspResults, options, regranforResults, errors)
-  .regranforPlotVarImportance( jaspResults, options, regranforResults, errors)
+  .regranforTable(             jaspResults, options, regranforResults, ready)
+  .regranforTableVarImportance(jaspResults, options, regranforResults, ready)
+  .regranforContainerPlots(    jaspResults, options, regranforResults, ready)
+  .regranforPlotVarImportance( jaspResults, options, regranforResults, ready)
 
   return()
-}
-
-# Init functions ----
-.regranforInitOptions <- function(jaspResults, options) {
-  # Determine if analysis can be run with user input
-  # Calculate any options common to multiple parts of the analysis
-  # options: e.g., nr of predictors should not be larger than nr of predictors given, percentage should betw. 0 and 1
-  options
-}
-
-# Read data
-.regranforReadData <- function(dataset, options) {
-  if (!is.null(dataset)) {
-    return(dataset)
-  } else {
-    return(.readDataSetToEnd(columns.as.numeric = options$target, columns = options$predictors))
-  }
 }
 
 # Check for errors
 .regranforErrorHandling <- function(dataset, options) {
 
-  # Check if results can be computed
-  if (length(options$target) == 0 || length(options$predictors) == 0) return("No variables")
-
   # Error Check 1: 0 observations for the target variable
-  errors <- .hasErrors(
+  .hasErrors(
     dataset = dataset, 
     perform = "run", 
     type = c('observations', 'variance', 'infinity'),
@@ -74,13 +55,10 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
     observations.amount = '< 1',
     exitAnalysisIfErrors = TRUE)
 
-  errors
 }
 
 # Compute results
-.regranforComputeResults <- function(jaspResults, dataset, options, errors) {
-
-  if (!is.null(errors) && errors == "No variables") return()
+.regranforComputeResults <- function(jaspResults, dataset, options) {
   
   if (is.null(jaspResults[["stateregranforResults"]])) {
     regranforResults <- .regranforResultsHelper(jaspResults, dataset, options)
@@ -96,10 +74,8 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
 
 .regranforResultsHelper <- function(jaspResults, dataset, options) {
 
-  # This will be the object that we fill with results
   results <- list()
   
-  # First, we perform precalculation of variables we use throughout the analysis
   results[["spec"]] <- .regranforCalcSpecs(dataset, options)
   results[["res"]] <- list()
   
@@ -116,17 +92,17 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   idxTrain <- sample(1:n, floor(results$spec$dataTrainingModel*n))
   idxTest <- (1:n)[-idxTrain]
   
-  predsTrain <- dataset[idxTrain, preds, drop = FALSE]
-  targetTrain <- dataset[idxTrain, target]
-  predsTest <- dataset[idxTest, preds, drop = FALSE]
-  targetTest <- dataset[idxTest, target]
+  xTrain <- dataset[idxTrain, preds, drop = FALSE]
+  yTrain <- dataset[idxTrain, target]
+  xTest <- dataset[idxTest, preds, drop = FALSE]
+  yTest <- dataset[idxTest, target]
   
   # Run Random Forest
   results[["res"]] <- randomForest::randomForest(
-    x = predsTrain,
-    y = targetTrain,
-    xtest = predsTest,
-    ytest = targetTest,
+    x = xTrain,
+    y = yTrain,
+    xtest = xTest,
+    ytest = yTest,
     ntree = results$spec$noOfTrees,
     mtry = results$spec$noOfPredictors,
     sampsize = results$spec$dataBootstrapModel,
@@ -137,6 +113,8 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
     keep.forest = TRUE,
     na.action = randomForest::na.roughfix
   )
+  
+  results[["data"]] <- list(xTrain = xTrain, yTrain = yTrain, xTest = xTest, yTest = yTest)
   
   # Save results to state
   jaspResults[["stateregranforResults"]] <- createJaspState(results)
@@ -204,41 +182,41 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   
   mainContainer <- createJaspContainer("Random Forest Model")
   mainContainer$dependOnOptions(c("noOfTrees", "noOfPredictors", "numberOfPredictors"))
-  mainContainer$setOptionMustContainDependency("noOfPredictors", options$noOfPredictors)
+  # mainContainer$setOptionMustContainDependency("noOfPredictors")
   
   jaspResults[["regranforMainContainer"]] <- mainContainer
 }
 
-.regranforTableSummary <- function(jaspResults, options, regranforResults) {
-  if (!is.null(jaspResults[["regranforMainContainer"]][["regranforTable"]])) return()
-
-  # Below is one way of creating a table
-  regranforTableSumm <- createJaspTable(title = "Summary")
+.regranforTable <- function(jaspResults, options, regranforResults, ready) {
+  if (!is.null(jaspResults[["regranforMainContainer"]][["tableSummary"]])) return()
   
-  # Bind table to jaspResults
-  jaspResults[["regranforMainContainer"]][["regranforTableSumm"]] <- regranforTableSumm
+  # Create table and bind to jaspResults
+  regranforTable <- createJaspTable(title = "Summary")
+  jaspResults[["regranforMainContainer"]][["tableSummary"]] <- regranforTable
   
   # Add column info
   if(options$dataTrainingModel == "auto" || options$percentageDataTraining < 1){
-    regranforTableSumm$addColumnInfo(name = "testMSE",  title = "Test Set MSE", type = "number", 
+    regranforTable$addColumnInfo(name = "testMSE",  title = "Test Set MSE", type = "number", 
                                              format = "sf:4")
   }
-  regranforTableSumm$addColumnInfo(name = "ntrees",  title = "Trees", type = "integer")
-  regranforTableSumm$addColumnInfo(name = "mtry",  title = "Variables tried", type = "integer")
+  regranforTable$addColumnInfo(name = "ntrees",  title = "Trees", type = "integer")
+  regranforTable$addColumnInfo(name = "mtry",  title = "Variables tried", type = "integer")
   
   # Add data per column
-  #if (regranforResults$spec$ready)
-  regranforTableSumm[["testMSE"]]  <- mean((regranforResults$res$test$predicted - regranforResults$data$targetTest)^2)
-  regranforTableSumm[["ntrees"]]  <- regranforResults$res$ntree
-  regranforTableSumm[["mtry"]]  <- regranforResults$res$mtry
+  regranforTable[["testMSE"]]  <- if (ready) 
+    mean((regranforResults$res$test$predicted - regranforResults$data$yTest)^2) else "."
+  regranforTable[["ntrees"]]  <- if (ready) regranforResults$res$ntree else "."
+  regranforTable[["mtry"]]  <- if (ready) regranforResults$res$mtry else "."
+  
 }
 
-.regranforTableVarImportance <- function(jaspResults, options, regranforResults) {
+.regranforTableVarImportance <- function(jaspResults, options, regranforResults, ready) {
   
+  if (!is.null(jaspResults[["regranforMainContainer"]][["tableVariableImportance"]])) return()
   if (!options$tableVariableImportance) return()
   
   regranforTableVI <- createJaspTable(title = "Variable Importance")
-  jaspResults[["regranforMainContainer"]][["regranforTableVI"]] <- regranforTableVI
+  jaspResults[["regranforMainContainer"]][["tableVariableImportance"]] <- regranforTableVI
   
   # Add column info
   regranforTableVI$addColumnInfo(name = "predictor",  title = " ", type = "string")
@@ -247,18 +225,19 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
                                  format = "sf:4")
 
   # Ordering the variables according to their mean decrease in accuracy
-  varImportanceOrder <- sort(regranforResults$res$importance[,1], decr=T, index.return=T)$ix
+  if(ready) varImportanceOrder <- sort(regranforResults$res$importance[,1], decr = FALSE, index.return = T)$ix
   
   # Add data per column
-  regranforTableVI[["predictor"]]  <- .unv(names(regranforResults$res$importance[varImportanceOrder, 1]))
-  regranforTableVI[["MDiA"]]  <- regranforResults$res$importance[varImportanceOrder, 1]
-  regranforTableVI[["MDiNI"]]  <- regranforResults$res$importance[varImportanceOrder, 2]
+  regranforTableVI[["predictor"]]  <- if(ready) 
+    .unv(names(regranforResults$res$importance[varImportanceOrder, 1])) else "."
+  regranforTableVI[["MDiA"]]  <- if(ready) regranforResults$res$importance[varImportanceOrder, 1] else "."
+  regranforTableVI[["MDiNI"]]  <- if(ready) regranforResults$res$importance[varImportanceOrder, 2] else "."
   
 }
 
-.regranforContainerPlots <- function(jaspResults, options, regranforResults, errors) {
+.regranforContainerPlots <- function(jaspResults, options, regranforResults, ready) {
   if (!any(options$plotVariableImportance, options$plotTreesVsModelError, options$plotPredictivePerformance)) return()
-  if (!is.null(errors) && errors == "No variables") return()
+  if (!ready) return()
   
   if (is.null(jaspResults[["containerPlots"]])) {
     jaspResults[["containerPlots"]] <- createJaspContainer("Random Forest Plots")
@@ -267,13 +246,13 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   }
 }
 
-.regranforPlotVarImportance <- function(jaspResults, options, regranforResults, errors) {
+.regranforPlotVarImportance <- function(jaspResults, options, regranforResults, ready) {
   if (!options$plotVariableImportance) return()
-  if (!is.null(errors) && errors == "No variables") return()
+  if (!ready) return()
   
   pct <- jaspResults[["containerPlots"]] # create pointer towards main container
   
-  varImportancePlot <- .regranforPlotVarImportanceHelper(options$plotVariableImportanceShowValues, regranforResults)
+  varImportancePlot <- .regranforPlotVarImportanceHelper(options, regranforResults)
   pct[['varImportancePlot']] <- createJaspPlot(plot = varImportancePlot, title = "Variable Importance Plot", 
                                                width = 400, height = 300)
 }
@@ -292,47 +271,19 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   
   varImpPlot1 <- JASPgraphs::themeJasp(
     ggplot2::ggplot(varImportance, ggplot2::aes(x = reorder(Variable, -IncMeanAcc), y = IncMeanAcc)) +
-    ggplot2::geom_bar(stat = "identity", position = plotPosition, size = 4) +
+    ggplot2::geom_bar(stat = "identity", position = plotPosition) +
     ggplot2::ylab("Mean Decrease in Accuracy") +
+    ggplot2::xlab(NULL) +
     ggplot2::geom_hline(yintercept = 0, linetype = "dashed") +
-    ggplot2::xlab(NULL)) +
-    ggplot2::coord_flip()# +
-    ggplot2::theme_bw() +
-    ggplot2::theme(
-      panel.grid.minor  = ggplot2::element_blank(),
-      plot.title        = ggplot2::element_text(size = 18),
-      panel.grid.major  = ggplot2::element_blank(),
-      axis.title.x      = ggplot2::element_text(size = 18, color = "black"),
-      axis.text.x       = ggplot2::element_text(size = 15, color = "black"),
-      axis.text.y       = ggplot2::element_text(size = 15, color = "black"),
-      panel.background  = ggplot2::element_rect(fill = "transparent", colour = NA),
-      plot.background   = ggplot2::element_rect(fill = "transparent", colour = NA),
-      axis.ticks        = ggplot2::element_line(size = 0.5),
-      axis.ticks.margin = grid::unit(1, "mm"),
-      axis.ticks.length = grid::unit(3, "mm"),
-      plot.margin       = grid::unit(c(0.5, 0, 0.5, 0.5), "cm")
+    ggplot2::coord_flip()
     )
   
-  varImpPlot2 <-
+  varImpPlot2 <- JASPgraphs::themeJasp(
     ggplot2::ggplot(varImportance, ggplot2::aes(x = reorder(Variable, -IncMeanAcc), y = IncNodePurity)) +
-    ggplot2::geom_bar(stat = "identity", position = plotPosition, size = 4) +
+    ggplot2::geom_bar(stat = "identity", position = plotPosition) +
     ggplot2::ylab("Total Decrease in Node Impurity") +
     ggplot2::xlab(NULL) +
-    ggplot2::coord_flip() +
-    ggplot2::theme_bw() +
-    ggplot2::theme(
-      panel.grid.minor  = ggplot2::element_blank(),
-      plot.title        = ggplot2::element_text(size = 18),
-      panel.grid.major  = ggplot2::element_blank(),
-      axis.title.x      = ggplot2::element_text(size = 18, color = "black"),
-      axis.text.x       = ggplot2::element_text(size = 15, color = "black"),
-      axis.text.y       = ggplot2::element_text(size = 15, color = "black"),
-      panel.background  = ggplot2::element_rect(fill = "transparent", colour = NA),
-      plot.background   = ggplot2::element_rect(fill = "transparent", colour = NA),
-      axis.ticks        = ggplot2::element_line(size = 0.5),
-      axis.ticks.margin = grid::unit(1, "mm"),
-      axis.ticks.length = grid::unit(3, "mm"),
-      plot.margin       = grid::unit(c(0.5, 0, 0.5, 0.5), "cm")
+    ggplot2::coord_flip()
     )
   
   varImpPlot <- gridExtra::grid.arrange(varImpPlot1, varImpPlot2, ncol = 2)
