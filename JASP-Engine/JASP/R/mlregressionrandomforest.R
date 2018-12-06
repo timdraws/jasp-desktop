@@ -25,7 +25,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   dataset <- .readDataSetToEnd(columns.as.numeric = options$target, columns = options$predictors)
 
   # Check if results can be computed
-  ready <- (!is.null(options$target) && length(options$predictors) > 0)
+  ready <- (!is.null(options$target) && length(.v(options$predictors)) > 0)
   
   # Error checking
   if(ready) errors <- .regranforErrorHandling(dataset, options)
@@ -39,6 +39,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   .regranforTableVarImportance(   jaspResults, options, regranforResults, ready)
   .regranforContainerPlots(       jaspResults, options, regranforResults, ready)
   .regranforPlotVarImportance(    jaspResults, options, regranforResults, ready)
+  .regranforPlotPredPerformance(  jaspResults, options, regranforResults, ready)
   .regranforPlotTreesVsModelError(jaspResults, options, regranforResults, ready)
 
   return()
@@ -87,6 +88,27 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   preds <- which(colnames(dataset) %in% .v(options$predictors)) # predictors
   target <- which(colnames(dataset) %in% .v(options$target)) # target
   
+  # Deal with NAs ("pairwise", "listwise", "impute" => "omit", "rough fix", "impute")
+  if (sum(is.na(dataset)) > 0) {
+    
+    # If a predictor column consists of only NAs, exclude that column entirely
+    for (predictor in preds) {
+      if(sum(is.na(dataset[,preds])) == nrow(dataset)) {
+        preds <- preds[-predictor]
+      } 
+    }
+    
+    # Option: apply na.roughfix (see ?na.roughfix)
+    if (options$missingValues == "roughfix") {
+      dataset <- randomForest::na.roughfix(dataset)
+      
+    # Otherwise appy the default: remove all rows that contain NA values
+    } else {
+      dataset <- na.omit(dataset)
+    } 
+    
+  }
+  
   # Splitting the data into a training and a test set
   n <- nrow(dataset)
 
@@ -112,7 +134,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
     importance = TRUE,
     # proximity = options$calculateProximityMatrix, # let's leave that out for now
     keep.forest = TRUE,
-    na.action = randomForest::na.roughfix
+    na.action = results$spec$missingValues
   )
   
   results[["data"]] <- list(xTrain = xTrain, yTrain = yTrain, xTest = xTest, yTest = yTest)
@@ -261,15 +283,15 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
     IncNodePurity = regranforResults$res$importance[varImportanceOrder, 2]
   )
   
-  varImpPlot1 <- .regranforVarImpPlot1Helper(options, regranforResults)
-  varImpPlot2 <- .regranforVarImpPlot2Helper(options, regranforResults)
+  varImpPlot1 <- .regranforVarImpPlot1Helper(options, regranforResults, varImportance)
+  varImpPlot2 <- .regranforVarImpPlot2Helper(options, regranforResults, varImportance)
   pct[['varImportancePlot1']] <- createJaspPlot(plot = varImpPlot1, title = "Variable Importance Plot", 
-                                               width = 400, height = 300)
+                                               width = options$plotWidth, height = options$plotHeight)
   pct[['varImportancePlot2']] <- createJaspPlot(plot = varImpPlot2, title = "Variable Importance Plot", 
-                                                width = 400, height = 300)
+                                                width = options$plotWidth, height = options$plotHeight)
 }
 
-.regranforVarImpPlot1Helper <- function(options, regranforResults) {
+.regranforVarImpPlot1Helper <- function(options, regranforResults, varImportance) {
   
   plotPosition <- ggplot2::position_dodge(0.2)
   
@@ -285,7 +307,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   return(varImpPlot1)
 }
 
-.regranforVarImpPlot2Helper <- function(options, regranforResults) {
+.regranforVarImpPlot2Helper <- function(options, regranforResults, varImportance) {
   
   plotPosition <- ggplot2::position_dodge(0.2)
   varImpPlot2 <- JASPgraphs::themeJasp(
@@ -299,23 +321,72 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   return(varImpPlot2)
 }
 
+.regranforPlotPredPerformance <- function(jaspResults, options, regranforResults, ready) {
+  if (!options$plotPredictivePerformance) return()
+  if (!ready) return()
+  
+  pct <- jaspResults[["containerPlots"]] # create pointer towards main container
+  
+  if(regranforResults$spec$dataTrainingModel == 1){
+    
+    predPerformance <- dplyr::tibble(
+      true = regranforResults$res$predicted,
+      predicted = regranforResults$data$targetTrain) 
+    
+  } else {
+    
+    predPerformance <- dplyr::tibble(
+      true = regranforResults$res$test$predicted,
+      predicted = regranforResults$data$targetTest) 
+    
+  }
+  
+  plotPredPerformance <- .regranforPlotTreesVsModelErrorHelper(options, regranforResults, treesMSE)
+  pct[['plotPredPerformance']] <- createJaspPlot(plot = plotPredPerformance, title = "Predictive Performance",
+                                                 width = options$plotWidth, height = options$plotHeight)
+}
+
+.regranforPlotPredPerformanceHelper <- function(options, regranforResults, treesMSE) {
+  
+  plotPosition <- ggplot2::position_dodge(0.2)
+  plotPredPerformance <- JASPgraphs::themeJasp(
+    ggplot2::ggplot(predPerformance, ggplot2::aes(x = true, y = predicted)) +
+      ggplot2::geom_point(position = plotPosition) +
+      ggplot2::geom_smooth() +
+      ggplot2::ylab("Predicted") +
+      ggplot2::xlab("True")
+  )
+  
+  return(plotPredPerformance)
+}
+
+
 .regranforPlotTreesVsModelError <- function(jaspResults, options, regranforResults, ready) {
   if (!options$plotTreesVsModelError) return()
   if (!ready) return()
   
-  
   pct <- jaspResults[["containerPlots"]] # create pointer towards main container
   
-  plotTreesVsModelError <- .regranforPlotTreesVsModelErrorHelper(options, regranforResults)
+  treesMSE <- dplyr::tibble(
+    trees = 1:length(regranforResults$res$mse),
+    MSE = regranforResults$res$mse
+  )
+  
+  plotTreesVsModelError <- .regranforPlotTreesVsModelErrorHelper(options, regranforResults, treesMSE)
   pct[['plotTreesVsModelError']] <- createJaspPlot(plot = plotTreesVsModelError, title = "Trees vs MSE", 
-                                                width = 400, height = 300)
+                                                width = options$plotWidth, height = options$plotHeight)
 }
 
-.regranforPlotTreesVsModelErrorHelper <- function(options, regranforResults) {
+.regranforPlotTreesVsModelErrorHelper <- function(options, regranforResults, treesMSE) {
   
   plotPosition <- ggplot2::position_dodge(0.2)
-  
-  plotTreesVsModelError <- randomForest:::plot.randomForest(regranforResults$res)
+  plotTreesVsModelError <- JASPgraphs::themeJasp(
+    ggplot2::ggplot(treesMSE, ggplot2::aes(x = trees, y = MSE)) +
+      ggplot2::geom_point(position = plotPosition) +
+      ggplot2::geom_smooth() +
+      ggplot2::ylab("MSE") +
+      ggplot2::xlab("Number of Trees")
+  )
   
   return(plotTreesVsModelError)
 }

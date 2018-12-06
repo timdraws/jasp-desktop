@@ -29,7 +29,8 @@ MLRegressionRandomForestForm::MLRegressionRandomForestForm(QWidget *parent) :
 
 	_targetListModel = new TableModelVariablesAssigned(this);
 	_targetListModel->setSource(&_availableVariablesModel);
-	_targetListModel->setVariableTypesSuggested(Column::ColumnTypeScale | Column::ColumnTypeNominal | Column::ColumnTypeOrdinal);
+    _targetListModel->setVariableTypesSuggested(Column::ColumnTypeScale);
+    _targetListModel->setVariableTypesAllowed(Column::ColumnTypeScale);
 	ui->target->setModel(_targetListModel);
 
 	_predictorsListModel = new TableModelVariablesAssigned(this);
@@ -69,6 +70,7 @@ MLRegressionRandomForestForm::MLRegressionRandomForestForm(QWidget *parent) :
 
 //#ifndef JASP_DEBUG
     ui->widget_11->hide();
+    ui->plotVariableImportanceShowValues->hide();
 //#endif
 
 	ui->advancedOptions->hide();

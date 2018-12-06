@@ -3,7 +3,7 @@
     "autorun": true,
     "name": "MLRegressionRandomForest",
     "jaspResults": true,
-	"options": [
+	  "options": [
 		{
 			"name": "target",
 			"type": "Variable"
@@ -147,13 +147,19 @@
                         "max": 10000000,
                         "value": 1.0
 		},
+		{
+			"name": "missingValues",
+			"type": "List",
+			"options": [ "naOmit", "roughfix" ],
+			"default": "naOmit"
+		},
     		{
-			"default": 640,
+			"default": 400,
 			"name": "plotWidth",
 			"type": "Integer"
 		},
 		{
-			"default": 480,
+			"default": 300,
 			"name": "plotHeight",
 			"type": "Integer"
 		}
