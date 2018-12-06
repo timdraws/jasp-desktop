@@ -34,11 +34,12 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   if(ready) regranforResults <- .regranforComputeResults(jaspResults, dataset, options)
 
   # Output containers, tables, and plots based on the results. These functions should not return anything!
-  .regranforContainerMain(     jaspResults, options, regranforResults)
-  .regranforTable(             jaspResults, options, regranforResults, ready)
-  .regranforTableVarImportance(jaspResults, options, regranforResults, ready)
-  .regranforContainerPlots(    jaspResults, options, regranforResults, ready)
-  .regranforPlotVarImportance( jaspResults, options, regranforResults, ready)
+  .regranforContainerMain(        jaspResults, options, regranforResults)
+  .regranforTable(                jaspResults, options, regranforResults, ready)
+  .regranforTableVarImportance(   jaspResults, options, regranforResults, ready)
+  .regranforContainerPlots(       jaspResults, options, regranforResults, ready)
+  .regranforPlotVarImportance(    jaspResults, options, regranforResults, ready)
+  .regranforPlotTreesVsModelError(jaspResults, options, regranforResults, ready)
 
   return()
 }
@@ -252,13 +253,6 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   
   pct <- jaspResults[["containerPlots"]] # create pointer towards main container
   
-  varImportancePlot <- .regranforPlotVarImportanceHelper(options, regranforResults)
-  pct[['varImportancePlot']] <- createJaspPlot(plot = varImportancePlot, title = "Variable Importance Plot", 
-                                               width = 400, height = 300)
-}
-
-.regranforPlotVarImportanceHelper <- function(options, regranforResults) {
-
   varImportanceOrder <- sort(regranforResults$res$importance[,1], decr = T, index.return = T)$ix
   
   varImportance <- dplyr::tibble(
@@ -266,6 +260,16 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
     IncMeanAcc = regranforResults$res$importance[varImportanceOrder, 1],
     IncNodePurity = regranforResults$res$importance[varImportanceOrder, 2]
   )
+  
+  varImpPlot1 <- .regranforVarImpPlot1Helper(options, regranforResults)
+  varImpPlot2 <- .regranforVarImpPlot2Helper(options, regranforResults)
+  pct[['varImportancePlot1']] <- createJaspPlot(plot = varImpPlot1, title = "Variable Importance Plot", 
+                                               width = 400, height = 300)
+  pct[['varImportancePlot2']] <- createJaspPlot(plot = varImpPlot2, title = "Variable Importance Plot", 
+                                                width = 400, height = 300)
+}
+
+.regranforVarImpPlot1Helper <- function(options, regranforResults) {
   
   plotPosition <- ggplot2::position_dodge(0.2)
   
@@ -278,15 +282,40 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
     ggplot2::coord_flip()
     )
   
+  return(varImpPlot1)
+}
+
+.regranforVarImpPlot2Helper <- function(options, regranforResults) {
+  
+  plotPosition <- ggplot2::position_dodge(0.2)
   varImpPlot2 <- JASPgraphs::themeJasp(
     ggplot2::ggplot(varImportance, ggplot2::aes(x = reorder(Variable, -IncMeanAcc), y = IncNodePurity)) +
-    ggplot2::geom_bar(stat = "identity", position = plotPosition) +
-    ggplot2::ylab("Total Decrease in Node Impurity") +
-    ggplot2::xlab(NULL) +
-    ggplot2::coord_flip()
-    )
+      ggplot2::geom_bar(stat = "identity", position = plotPosition) +
+      ggplot2::ylab("Total Decrease in Node Impurity") +
+      ggplot2::xlab(NULL) +
+      ggplot2::coord_flip()
+  )
   
-  varImpPlot <- gridExtra::grid.arrange(varImpPlot1, varImpPlot2, ncol = 2)
+  return(varImpPlot2)
+}
+
+.regranforPlotTreesVsModelError <- function(jaspResults, options, regranforResults, ready) {
+  if (!options$plotTreesVsModelError) return()
+  if (!ready) return()
   
-  return(varImpPlot)
+  
+  pct <- jaspResults[["containerPlots"]] # create pointer towards main container
+  
+  plotTreesVsModelError <- .regranforPlotTreesVsModelErrorHelper(options, regranforResults)
+  pct[['plotTreesVsModelError']] <- createJaspPlot(plot = plotTreesVsModelError, title = "Trees vs MSE", 
+                                                width = 400, height = 300)
+}
+
+.regranforPlotTreesVsModelErrorHelper <- function(options, regranforResults) {
+  
+  plotPosition <- ggplot2::position_dodge(0.2)
+  
+  plotTreesVsModelError <- randomForest:::plot.randomForest(regranforResults$res)
+  
+  return(plotTreesVsModelError)
 }
