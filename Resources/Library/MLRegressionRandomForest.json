@@ -39,10 +39,6 @@
 			"type": "Boolean"
 		},
 		{
-			"name": "plotVariableImportanceShowValues",
-			"type": "Boolean"
-		},
-		{
 			"name": "plotPredictivePerformance",
 			"type": "Boolean"
 		},
@@ -55,10 +51,6 @@
 			"name": "tableSummary",
 			"type": "Boolean",
       "default" : true
-		},
-		{
-			"name": "calculateProximityMatrix",
-			"type": "Boolean"
 		},
 		{
 			"name": "noOfTrees",
