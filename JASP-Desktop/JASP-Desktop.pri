@@ -342,14 +342,14 @@ HEADERS  += \
     $$PWD/resultstesting/resultscomparetable.h
 
 FORMS += \
-    $$PWD/aboutdialog.ui \
     $$PWD/mainwindow.ui \
     $$PWD/preferencesdialog.ui \
     $$PWD/ribbons/ribbonhome.ui \
     $$PWD/widgets/anovamodelwidget.ui \
     $$PWD/widgets/boundassignwidget.ui \
     $$PWD/widgets/subjectivepriorswidget.ui \
-    $$PWD/backstage/backstageform.ui
+    $$PWD/backstage/backstageform.ui \
+    $$PWD/aboutdialog.ui
 
 RESOURCES += \
     $$PWD/backstage/backstage.qrc \
